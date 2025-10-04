@@ -163,7 +163,7 @@ OUTPUT CONSTRAINT: Verify the accuracy of all questions and awarded marks. The f
   };
 
   // Generate content with structured output
-  const response = await genAI.models.generateContent({
+  const response : any = await genAI.models.generateContent({
     model: 'gemini-2.0-flash',
     contents: [contents],
     config: {

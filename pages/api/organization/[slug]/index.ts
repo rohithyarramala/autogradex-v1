@@ -47,24 +47,24 @@ export default async function handler(
   }
 }
 
-// Get a team by slug
+// Get a organization by slug
 const handleGET = async (req: NextApiRequest, res: NextApiResponse) => {
   const user = await getCurrentUserWithTeam(req, res);
 
-  throwIfNotAllowed(user, 'team', 'read');
+  throwIfNotAllowed(user, 'organization', 'read');
 
-  const team = await getOrganization({ id: user.organization.id });
+  const organization = await getOrganization({ id: user.organization.id });
 
-  recordMetric('team.fetched');
+  recordMetric('organization.fetched');
 
-  res.status(200).json({ data: team });
+  res.status(200).json({ data: organization });
 };
 
-// Update a team
+// Update a organization
 const handlePUT = async (req: NextApiRequest, res: NextApiResponse) => {
   const user = await getCurrentUserWithTeam(req, res);
 
-  throwIfNotAllowed(user, 'team', 'update');
+  throwIfNotAllowed(user, 'organization', 'update');
 
   const { name, slug, domain } = validateWithSchema(updateTeamSchema, req.body);
 
@@ -85,13 +85,13 @@ const handlePUT = async (req: NextApiRequest, res: NextApiResponse) => {
       const target = error.meta.target as string[];
 
       if (target.includes('slug')) {
-        throw new ApiError(409, 'This slug is already taken for a team.');
+        throw new ApiError(409, 'This slug is already taken for a organization.');
       }
 
       if (target.includes('domain')) {
         throw new ApiError(
           409,
-          'This domain is already associated with a team.'
+          'This domain is already associated with a organization.'
         );
       }
     }
@@ -100,37 +100,37 @@ const handlePUT = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 
   sendAudit({
-    action: 'team.update',
+    action: 'organization.update',
     crud: 'u',
     user,
-    team: user.organization,
+    organization: user.organization,
   });
 
-  recordMetric('team.updated');
+  recordMetric('organization.updated');
 
   res.status(200).json({ data: updatedTeam });
 };
 
-// Delete a team
+// Delete a organization
 const handleDELETE = async (req: NextApiRequest, res: NextApiResponse) => {
-  if (!env.teamFeatures.deleteTeam) {
+  if (!env.organizationFeatures.deleteTeam) {
     throw new ApiError(404, 'Not Found');
   }
 
   const user = await getCurrentUserWithTeam(req, res);
 
-  throwIfNotAllowed(user, 'team', 'delete');
+  throwIfNotAllowed(user, 'organization', 'delete');
 
   await deleteOrganization({ id: user.organization.id });
 
   sendAudit({
-    action: 'team.delete',
+    action: 'organization.delete',
     crud: 'd',
     user,
-    team: user.organization,
+    organization: user.organization,
   });
 
-  recordMetric('team.removed');
+  recordMetric('organization.removed');
 
   res.status(204).end();
 };

@@ -204,7 +204,7 @@ const Home: NextPageWithLayout = () => {
         <section id="why-autogradex" className="py-16">
           <h2 className="text-3xl font-bold text-center mb-8">Our Story: Passion for Educational Transformation</h2>
           <p className="text-center mb-8">
-            Founded by a team of educators and AI specialists, AutogradeX was born from a deep understanding of the challenges faced in modern education.
+            Founded by a organization of educators and AI specialists, AutogradeX was born from a deep understanding of the challenges faced in modern education.
           </p>
           <Link href="/about" className="btn btn-primary mx-auto block w-fit">Learn More About Us</Link>
         </section>

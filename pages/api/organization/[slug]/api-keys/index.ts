@@ -1,5 +1,5 @@
 import { createApiKey, fetchApiKeys } from 'models/apiKey';
-import { getCurrentUserWithTeam, throwIfNoTeamAccess } from 'models/organization';
+import { getCurrentUserWithTeam, throwIfNoOrganizationAccess } from 'models/organization';
 import { throwIfNotAllowed } from 'models/user';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { recordMetric } from '@/lib/metrics';
@@ -12,11 +12,11 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
-    if (!env.teamFeatures.apiKey) {
+    if (!env.organizationFeatures.apiKey) {
       throw new ApiError(404, 'Not Found');
     }
 
-    await throwIfNoTeamAccess(req, res);
+    await throwIfNoOrganizationAccess(req, res);
 
     switch (req.method) {
       case 'GET':
@@ -43,9 +43,9 @@ export default async function handler(
 const handleGET = async (req: NextApiRequest, res: NextApiResponse) => {
   const user = await getCurrentUserWithTeam(req, res);
 
-  throwIfNotAllowed(user, 'team_api_key', 'read');
+  throwIfNotAllowed(user, 'organization_api_key', 'read');
 
-  const apiKeys = await fetchApiKeys(user.team.id);
+  const apiKeys = await fetchApiKeys(user.organization.id);
 
   recordMetric('apikey.fetched');
 
@@ -56,13 +56,13 @@ const handleGET = async (req: NextApiRequest, res: NextApiResponse) => {
 const handlePOST = async (req: NextApiRequest, res: NextApiResponse) => {
   const user = await getCurrentUserWithTeam(req, res);
 
-  throwIfNotAllowed(user, 'team_api_key', 'create');
+  throwIfNotAllowed(user, 'organization_api_key', 'create');
 
   const { name } = validateWithSchema(createApiKeySchema, req.body);
 
   const apiKey = await createApiKey({
     name,
-    teamId: user.team.id,
+    organizationId: user.organization.id,
   });
 
   recordMetric('apikey.created');

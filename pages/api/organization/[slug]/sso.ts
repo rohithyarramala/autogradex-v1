@@ -3,7 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import env from '@/lib/env';
 import { ApiError } from '@/lib/errors';
 import { sendAudit } from '@/lib/retraced';
-import { throwIfNoTeamAccess } from 'models/organization';
+import { throwIfNoOrganizationAccess } from 'models/organization';
 import { throwIfNotAllowed } from 'models/user';
 import { ssoManager } from '@/lib/jackson/sso/index';
 import {
@@ -20,7 +20,7 @@ export default async function handler(
   const { method } = req;
 
   try {
-    if (!env.teamFeatures.sso) {
+    if (!env.organizationFeatures.sso) {
       throw new ApiError(404, 'Not Found');
     }
 
@@ -53,15 +53,15 @@ export default async function handler(
   }
 }
 
-// Get the SSO connection for the team.
+// Get the SSO connection for the organization.
 const handleGET = async (req: NextApiRequest, res: NextApiResponse) => {
-  const teamMember = await throwIfNoTeamAccess(req, res);
+  const organizationMember = await throwIfNoOrganizationAccess(req, res);
 
-  throwIfNotAllowed(teamMember, 'team_sso', 'read');
+  throwIfNotAllowed(organizationMember, 'organization_sso', 'read');
 
   if ('clientID' in req.query) {
     await throwIfNoAccessToConnection({
-      teamId: teamMember.teamId,
+      organizationId: organizationMember.organizationId,
       clientId: extractClientId(req),
     });
   }
@@ -69,70 +69,70 @@ const handleGET = async (req: NextApiRequest, res: NextApiResponse) => {
   const params =
     'clientID' in req.query
       ? { clientID: req.query.clientID as string }
-      : { tenant: teamMember.teamId, product: env.jackson.productId };
+      : { tenant: organizationMember.organizationId, product: env.jackson.productId };
 
   const connections = await sso.getConnections(params);
 
   res.json(connections);
 };
 
-// Create a SSO connection for the team
+// Create a SSO connection for the organization
 const handlePOST = async (req: NextApiRequest, res: NextApiResponse) => {
-  const teamMember = await throwIfNoTeamAccess(req, res);
+  const organizationMember = await throwIfNoOrganizationAccess(req, res);
 
-  throwIfNotAllowed(teamMember, 'team_sso', 'create');
+  throwIfNotAllowed(organizationMember, 'organization_sso', 'create');
 
   const connection = await sso.createConnection({
     ...req.body,
     defaultRedirectUrl: env.jackson.sso.callback + env.jackson.sso.idpLoginPath,
     redirectUrl: env.jackson.sso.callback,
     product: env.jackson.productId,
-    tenant: teamMember.teamId,
+    tenant: organizationMember.organizationId,
   });
 
   sendAudit({
     action: 'sso.connection.create',
     crud: 'c',
-    user: teamMember.user,
-    team: teamMember.team,
+    user: organizationMember.user,
+    organization: organizationMember.organization,
   });
 
   res.status(201).json(connection);
 };
 
 const handlePATCH = async (req: NextApiRequest, res: NextApiResponse) => {
-  const teamMember = await throwIfNoTeamAccess(req, res);
+  const organizationMember = await throwIfNoOrganizationAccess(req, res);
 
-  throwIfNotAllowed(teamMember, 'team_sso', 'create');
+  throwIfNotAllowed(organizationMember, 'organization_sso', 'create');
 
   await throwIfNoAccessToConnection({
-    teamId: teamMember.teamId,
+    organizationId: organizationMember.organizationId,
     clientId: extractClientId(req),
   });
 
   await sso.updateConnection({
     ...req.body,
-    tenant: teamMember.teamId,
+    tenant: organizationMember.organizationId,
     product: env.jackson.productId,
   });
 
   sendAudit({
     action: 'sso.connection.patch',
     crud: 'u',
-    user: teamMember.user,
-    team: teamMember.team,
+    user: organizationMember.user,
+    organization: organizationMember.organization,
   });
 
   res.status(204).end();
 };
 
 const handleDELETE = async (req: NextApiRequest, res: NextApiResponse) => {
-  const teamMember = await throwIfNoTeamAccess(req, res);
+  const organizationMember = await throwIfNoOrganizationAccess(req, res);
 
-  throwIfNotAllowed(teamMember, 'team_sso', 'delete');
+  throwIfNotAllowed(organizationMember, 'organization_sso', 'delete');
 
   await throwIfNoAccessToConnection({
-    teamId: teamMember.teamId,
+    organizationId: organizationMember.organizationId,
     clientId: extractClientId(req),
   });
 
@@ -141,8 +141,8 @@ const handleDELETE = async (req: NextApiRequest, res: NextApiResponse) => {
   sendAudit({
     action: 'sso.connection.delete',
     crud: 'c',
-    user: teamMember.user,
-    team: teamMember.team,
+    user: organizationMember.user,
+    organization: organizationMember.organization,
   });
 
   res.status(204).end();

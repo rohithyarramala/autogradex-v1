@@ -5,10 +5,10 @@ import { WelcomeEmail } from '@/components/emailTemplates';
 export const sendWelcomeEmail = async (
   name: string,
   email: string,
-  team: string
+  organization: string
 ) => {
   const subject = 'Welcome to BoxyHQ';
-  const html = await render(WelcomeEmail({ name, team, subject }));
+  const html = await render(WelcomeEmail({ name, organization, subject }));
 
   await sendEmail({
     to: email,

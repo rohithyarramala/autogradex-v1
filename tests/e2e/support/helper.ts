@@ -6,7 +6,7 @@ export const user = {
   password: 'password',
 } as const;
 
-export const team = {
+export const organization = {
   name: 'Example',
   slug: 'example',
 } as const;
@@ -17,8 +17,8 @@ export const secondTeam = {
 } as const;
 
 export async function cleanup() {
-  await prisma.teamMember.deleteMany();
-  await prisma.team.deleteMany();
+  await prisma.organizationMember.deleteMany();
+  await prisma.organization.deleteMany();
   await prisma.user.deleteMany();
   await prisma.session.deleteMany();
   await prisma.$disconnect();

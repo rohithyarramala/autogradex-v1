@@ -11,7 +11,7 @@ interface Teacher {
   name: string;
   email: string;
   password?: string;
-  teamId?: string;
+  organizationId?: string;
     subject?: string;
     classes?: number;
     students?: number;
@@ -53,7 +53,7 @@ const TeachersPage = () => {
     const res = await fetch('/api/teachers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...teacher, teamId: orgId }),
+      body: JSON.stringify({ ...teacher, organizationId: orgId }),
     });
     if (res.ok) {
       const newTeacher = await res.json();
@@ -106,7 +106,7 @@ const TeachersPage = () => {
         <Button
           color="success"
           onClick={() => {
-            setEditingTeacher({ name: "", email: "", password: "", subject: "", classes: 0, students: 0, teamId: "" });
+            setEditingTeacher({ name: "", email: "", password: "", subject: "", classes: 0, students: 0, organizationId: "" });
             setOpenModal(true);
           }}
         >

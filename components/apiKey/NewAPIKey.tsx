@@ -1,5 +1,5 @@
 import { InputWithCopyButton, InputWithLabel } from '@/components/shared';
-import type { Team } from '@prisma/client';
+import type { Organization } from '@prisma/client';
 import { useTranslation } from 'next-i18next';
 import { useState } from 'react';
 import { Button } from 'react-daisyui';
@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { createApiKeySchema } from '@/lib/zod';
 
 const NewAPIKey = ({
-  team,
+  organization,
   createModalVisible,
   setCreateModalVisible,
 }: NewAPIKeyProps) => {
@@ -22,7 +22,7 @@ const NewAPIKey = ({
 
   const onNewAPIKey = (apiKey: string) => {
     setApiKey(apiKey);
-    mutate(`/api/teams/${team.slug}/api-keys`);
+    mutate(`/api/organizations/${organization.slug}/api-keys`);
   };
 
   const toggleVisible = () => {
@@ -34,7 +34,7 @@ const NewAPIKey = ({
     <Modal open={createModalVisible} close={toggleVisible}>
       {apiKey === '' ? (
         <CreateAPIKeyForm
-          team={team}
+          organization={organization}
           onNewAPIKey={onNewAPIKey}
           closeModal={toggleVisible}
         />
@@ -46,7 +46,7 @@ const NewAPIKey = ({
 };
 
 const CreateAPIKeyForm = ({
-  team,
+  organization,
   onNewAPIKey,
   closeModal,
 }: CreateAPIKeyFormProps) => {
@@ -65,7 +65,7 @@ const CreateAPIKeyForm = ({
       }
     },
     onSubmit: async (values) => {
-      const response = await fetch(`/api/teams/${team.slug}/api-keys`, {
+      const response = await fetch(`/api/organizations/${organization.slug}/api-keys`, {
         method: 'POST',
         body: JSON.stringify(values),
         headers: defaultHeaders,
@@ -145,13 +145,13 @@ const DisplayAPIKey = ({ apiKey, closeModal }: DisplayAPIKeyProps) => {
 };
 
 interface NewAPIKeyProps {
-  team: Team;
+  organization: Organization;
   createModalVisible: boolean;
   setCreateModalVisible: (visible: boolean) => void;
 }
 
 interface CreateAPIKeyFormProps {
-  team: Team;
+  organization: Organization;
   onNewAPIKey: (apiKey: string) => void;
   closeModal: () => void;
 }

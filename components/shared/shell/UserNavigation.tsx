@@ -12,7 +12,7 @@ import NavigationItems from './NavigationItems';
 import { MenuItem, NavigationProps } from './NavigationItems';
 
 interface UserNavigationProps extends NavigationProps {
-  role: 'ADMIN' | 'TEACHER' | 'STUDENT';
+  role: 'ADMIN' | 'TEACHER' | 'STUDENT' | 'SUPER_ADMIN';
 }
 
 const UserNavigation = ({ activePathname, role }: UserNavigationProps) => {

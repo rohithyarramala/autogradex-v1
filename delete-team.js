@@ -50,8 +50,8 @@ async function init() {
     console.log(
       `
       Usage: 
-        node delete-team.js [options] <teamId> [teamId]
-        npm run delete-team -- [options] <teamId> [teamId]
+        node delete-organization.js [options] <organizationId> [organizationId]
+        npm run delete-organization -- [options] <organizationId> [organizationId]
         
       Options:
         --apply: Run the script to apply changes
@@ -60,8 +60,8 @@ async function init() {
     console.log(
       `
       Example: 
-        node delete-team.js --apply 01850e43-d1e0-4b92-abe5-271b159ff99b
-        npm run delete-team -- --apply 01850e43-d1e0-4b92-abe5-271b159ff99b
+        node delete-organization.js --apply 01850e43-d1e0-4b92-abe5-271b159ff99b
+        npm run delete-organization -- --apply 01850e43-d1e0-4b92-abe5-271b159ff99b
         `
     );
     process.exit(1);
@@ -80,18 +80,18 @@ async function init() {
       dryRun = true;
     }
     for (i; i < process.argv.length; i++) {
-      const teamId = process.argv[i];
+      const organizationId = process.argv[i];
       try {
-        await displayDeletionArtifacts(teamId);
+        await displayDeletionArtifacts(organizationId);
 
         if (!dryRun) {
-          const confirmed = await askForConfirmation(teamId);
+          const confirmed = await askForConfirmation(organizationId);
           if (confirmed) {
-            await handleTeamDeletion(teamId);
+            await handleTeamDeletion(organizationId);
           }
         }
       } catch (error) {
-        console.log('Error deleting team:', error?.message);
+        console.log('Error deleting organization:', error?.message);
       }
     }
     await prisma.$disconnect();
@@ -100,18 +100,18 @@ async function init() {
   }
 }
 
-async function displayDeletionArtifacts(teamId) {
+async function displayDeletionArtifacts(organizationId) {
   // Team Details
-  const team = await getTeamById(teamId);
-  if (!team) {
-    throw new Error(`Team not found: ${teamId}`);
+  const organization = await getTeamById(organizationId);
+  if (!organization) {
+    throw new Error(`Team not found: ${organizationId}`);
   }
   console.log('\nTeam Details:');
-  printTable([team], ['id', 'name', 'billingId']);
+  printTable([organization], ['id', 'name', 'billingId']);
 
   // SSO Connections
   const ssoConnections = await getSSOConnections({
-    tenant: team.id,
+    tenant: organization.id,
     product,
   });
   if (ssoConnections.length > 0) {
@@ -122,7 +122,7 @@ async function displayDeletionArtifacts(teamId) {
   }
 
   // DSync Connections
-  const dsyncConnections = await getConnections(team.id);
+  const dsyncConnections = await getConnections(organization.id);
   if (dsyncConnections.length > 0) {
     console.log('\nDSync Connections:');
     printTable(dsyncConnections, ['id', 'type', 'name', 'product']);
@@ -130,9 +130,9 @@ async function displayDeletionArtifacts(teamId) {
     console.log('\nNo DSync connections found');
   }
 
-  if (team?.billingId) {
+  if (organization?.billingId) {
     // Active Subscriptions
-    const activeSubscriptions = await getActiveSubscriptions(team);
+    const activeSubscriptions = await getActiveSubscriptions(organization);
     if (activeSubscriptions.length > 0) {
       console.log('\nActive Subscriptions:');
       printTable(activeSubscriptions, ['id', 'startDate', 'endDate']);
@@ -143,7 +143,7 @@ async function displayDeletionArtifacts(teamId) {
     // All subscriptions
     const subscriptions = await prisma.subscription.findMany({
       where: {
-        customerId: team?.billingId,
+        customerId: organization?.billingId,
       },
     });
     if (subscriptions.length > 0) {
@@ -157,11 +157,11 @@ async function displayDeletionArtifacts(teamId) {
   }
 
   // Team Members
-  const teamMembers = await prisma.user.findMany({
+  const organizationMembers = await prisma.user.findMany({
     where: {
-      teamMembers: {
+      organizationMembers: {
         some: {
-          teamId: team.id,
+          organizationId: organization.id,
         },
       },
     },
@@ -171,20 +171,20 @@ async function displayDeletionArtifacts(teamId) {
       name: true,
     },
   });
-  for (let i = 0; i < teamMembers.length; i++) {
-    const user = teamMembers[i];
-    const userTeams = await prisma.teamMember.findMany({
+  for (let i = 0; i < organizationMembers.length; i++) {
+    const user = organizationMembers[i];
+    const userTeams = await prisma.organizationMember.findMany({
       where: {
         userId: user.id,
       },
     });
-    teamMembers[i].teams = userTeams.length;
-    teamMembers[i].action = userTeams.length > 1 ? 'Remove' : 'Delete';
+    organizationMembers[i].organizations = userTeams.length;
+    organizationMembers[i].action = userTeams.length > 1 ? 'Remove' : 'Delete';
   }
   console.log('\nTeam Members:');
-  printTable(teamMembers, ['id', 'email', 'name', 'teams', 'action']);
+  printTable(organizationMembers, ['id', 'email', 'name', 'organizations', 'action']);
 
-  const apiKeys = await prisma.apiKey.findMany({ where: { teamId: team.id } });
+  const apiKeys = await prisma.apiKey.findMany({ where: { organizationId: organization.id } });
   if (apiKeys.length > 0) {
     console.log('\nAPI Keys:');
     printTable(apiKeys, ['id', 'name']);
@@ -193,7 +193,7 @@ async function displayDeletionArtifacts(teamId) {
   }
 
   const invitations = await prisma.invitation.findMany({
-    where: { teamId: team.id },
+    where: { organizationId: organization.id },
   });
   if (invitations.length > 0) {
     console.log('\nInvitations:');
@@ -204,7 +204,7 @@ async function displayDeletionArtifacts(teamId) {
 
   if (svix) {
     console.log('\nChecking Svix application');
-    const application = await getSvixApplication(team.id);
+    const application = await getSvixApplication(organization.id);
     if (!application) {
       console.log('No Svix application found');
     } else {
@@ -220,20 +220,20 @@ async function displayDeletionArtifacts(teamId) {
   }
 }
 
-async function handleTeamDeletion(teamId) {
-  console.log(`\nChecking team: ${teamId}`);
-  let team = await getTeamById(teamId);
-  if (!team) {
-    console.log(`Team not found: ${teamId}`);
+async function handleTeamDeletion(organizationId) {
+  console.log(`\nChecking organization: ${organizationId}`);
+  let organization = await getTeamById(organizationId);
+  if (!organization) {
+    console.log(`Team not found: ${organizationId}`);
     return;
   } else {
-    console.log('Team found:', team.name);
-    if (team?.billingId) {
-      console.log('\nChecking active team subscriptions');
-      const activeSubscriptions = await getActiveSubscriptions(team);
+    console.log('Team found:', organization.name);
+    if (organization?.billingId) {
+      console.log('\nChecking active organization subscriptions');
+      const activeSubscriptions = await getActiveSubscriptions(organization);
       if (activeSubscriptions.length > 0) {
         console.log(
-          `${activeSubscriptions.length} Active subscriptions found. Please cancel them before deleting the team.`
+          `${activeSubscriptions.length} Active subscriptions found. Please cancel them before deleting the organization.`
         );
         printTable(activeSubscriptions, ['id', 'startDate', 'endDate']);
         return;
@@ -241,38 +241,38 @@ async function handleTeamDeletion(teamId) {
         console.log('No active subscriptions found');
       }
     }
-    await removeDSyncConnections(team);
-    await removeSSOConnections(team);
-    await removeTeamSubscriptions(team);
-    await removeTeamMembers(team);
+    await removeDSyncConnections(organization);
+    await removeSSOConnections(organization);
+    await removeTeamSubscriptions(organization);
+    await removeTeamMembers(organization);
 
-    await removeSvixApplication(team.id);
+    await removeSvixApplication(organization.id);
 
-    await removeTeam(team);
+    await removeTeam(organization);
   }
 }
 
-async function getTeamById(teamId) {
-  return await prisma.team.findUnique({
+async function getTeamById(organizationId) {
+  return await prisma.organization.findUnique({
     where: {
-      id: teamId,
+      id: organizationId,
     },
   });
 }
 
-async function removeTeam(team) {
-  console.log('\nDeleting team:', team.id);
-  await prisma.team.delete({
+async function removeTeam(organization) {
+  console.log('\nDeleting organization:', organization.id);
+  await prisma.organization.delete({
     where: {
-      id: team.id,
+      id: organization.id,
     },
   });
-  console.log('Team deleted:', team.name);
+  console.log('Team deleted:', organization.name);
 }
 
-async function removeSSOConnections(team) {
+async function removeSSOConnections(organization) {
   const params = {
-    tenant: team.id,
+    tenant: organization.id,
     product,
   };
   if (useHostedJackson) {
@@ -315,34 +315,34 @@ async function getSSOConnections(params) {
   }
 }
 
-async function removeDSyncConnections(team) {
-  console.log(`\nChecking team DSync connections`);
-  const connections = await getConnections(team.id);
+async function removeDSyncConnections(organization) {
+  console.log(`\nChecking organization DSync connections`);
+  const connections = await getConnections(organization.id);
   console.log(`Found ${connections.length} DSync connections`);
   for (const connection of connections) {
     console.log('\nDeleting DSync connection:', connection.id);
     await deleteConnection(connection.id);
     console.log('DSync connection deleted:', connection.id);
   }
-  console.log(`\nDone removing team DSync connections`);
+  console.log(`\nDone removing organization DSync connections`);
 }
 
-async function removeTeamSubscriptions(team) {
-  console.log('\nDeleting team subscriptions');
-  if (team?.billingId) {
+async function removeTeamSubscriptions(organization) {
+  console.log('\nDeleting organization subscriptions');
+  if (organization?.billingId) {
     await prisma.subscription.deleteMany({
       where: {
-        customerId: team?.billingId,
+        customerId: organization?.billingId,
       },
     });
   }
   console.log('Team subscriptions deleted');
 }
 
-async function getActiveSubscriptions(team) {
+async function getActiveSubscriptions(organization) {
   return await prisma.subscription.findMany({
     where: {
-      customerId: team?.billingId,
+      customerId: organization?.billingId,
       active: true,
       endDate: {
         gt: new Date(),
@@ -358,14 +358,14 @@ async function getActiveSubscriptions(team) {
   });
 }
 
-async function removeTeamMembers(team) {
-  console.log('\nChecking team members');
+async function removeTeamMembers(organization) {
+  console.log('\nChecking organization members');
 
-  const teamMembers = await prisma.user.findMany({
+  const organizationMembers = await prisma.user.findMany({
     where: {
-      teamMembers: {
+      organizationMembers: {
         some: {
-          teamId: team.id,
+          organizationId: organization.id,
         },
       },
     },
@@ -375,22 +375,22 @@ async function removeTeamMembers(team) {
       name: true,
     },
   });
-  console.log(`Found ${teamMembers.length} team members`);
-  printTable(teamMembers);
+  console.log(`Found ${organizationMembers.length} organization members`);
+  printTable(organizationMembers);
 
-  for (const user of teamMembers) {
-    await checkAndRemoveUser(user, team);
+  for (const user of organizationMembers) {
+    await checkAndRemoveUser(user, organization);
   }
 }
 
-async function checkAndRemoveUser(user, team) {
+async function checkAndRemoveUser(user, organization) {
   console.log('\nChecking user:', user.id);
-  const userTeams = await prisma.teamMember.findMany({
+  const userTeams = await prisma.organizationMember.findMany({
     where: {
       userId: user.id,
     },
   });
-  console.log(`User belongs to ${userTeams.length} teams`);
+  console.log(`User belongs to ${userTeams.length} organizations`);
   if (userTeams.length === 1) {
     console.log('Deleting user:', user.email);
     await prisma.user.delete({
@@ -400,14 +400,14 @@ async function checkAndRemoveUser(user, team) {
     });
     console.log('User deleted:', user.email);
   } else {
-    console.log('Removing user from team:', team.name);
-    await prisma.teamMember.deleteMany({
+    console.log('Removing user from organization:', organization.name);
+    await prisma.organizationMember.deleteMany({
       where: {
         userId: user.id,
-        teamId: team.id,
+        organizationId: organization.id,
       },
     });
-    console.log('User removed from team:', team.name);
+    console.log('User removed from organization:', organization.name);
   }
 }
 
@@ -480,9 +480,9 @@ async function deleteConnection(directoryId) {
   }
 }
 
-async function getSvixApplication(teamId) {
+async function getSvixApplication(organizationId) {
   try {
-    const application = await svix.application.get(teamId);
+    const application = await svix.application.get(organizationId);
     return application;
   } catch (ex) {
     console.log(
@@ -492,26 +492,26 @@ async function getSvixApplication(teamId) {
   }
 }
 
-async function removeSvixApplication(teamId) {
+async function removeSvixApplication(organizationId) {
   if (!svix) {
     return;
   }
-  console.log('\nDeleting Svix application:', teamId);
+  console.log('\nDeleting Svix application:', organizationId);
   try {
-    await svix.application.delete(teamId);
+    await svix.application.delete(organizationId);
   } catch (ex) {
     console.log(
       'Error deleting application:',
       ex?.code === 404 ? 'Not found' : ex
     );
   }
-  console.log('Svix application deleted:', teamId);
+  console.log('Svix application deleted:', organizationId);
 }
 
-async function askForConfirmation(teamId) {
+async function askForConfirmation(organizationId) {
   return new Promise((resolve) => {
     rl.question(
-      `Are you sure you want to delete team ${teamId}? (yes/no): `,
+      `Are you sure you want to delete organization ${organizationId}? (yes/no): `,
       (answer) => {
         if (answer.toLowerCase() === 'yes') {
           resolve(true);

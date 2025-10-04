@@ -1,5 +1,5 @@
 import env from '@/lib/env';
-import { throwIfNoTeamAccess } from 'models/organization';
+import { throwIfNoOrganizationAccess } from 'models/organization';
 import { throwIfNotAllowed } from 'models/user';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { ApiError } from '@/lib/errors';
@@ -16,7 +16,7 @@ export default async function handler(
   const { method } = req;
 
   try {
-    if (!env.teamFeatures.dsync) {
+    if (!env.organizationFeatures.dsync) {
       throw new ApiError(404, 'Not Found');
     }
 
@@ -47,14 +47,14 @@ export default async function handler(
 }
 
 const handleGET = async (req: NextApiRequest, res: NextApiResponse) => {
-  const teamMember = await throwIfNoTeamAccess(req, res);
+  const organizationMember = await throwIfNoOrganizationAccess(req, res);
 
-  throwIfNotAllowed(teamMember, 'team_dsync', 'read');
+  throwIfNotAllowed(organizationMember, 'organization_dsync', 'read');
 
   const directoryId = req.query.directoryId as string;
 
   await throwIfNoAccessToDirectory({
-    teamId: teamMember.team.id,
+    organizationId: organizationMember.organization.id,
     directoryId,
   });
 
@@ -64,12 +64,12 @@ const handleGET = async (req: NextApiRequest, res: NextApiResponse) => {
 };
 
 const handlePATCH = async (req: NextApiRequest, res: NextApiResponse) => {
-  const teamMember = await throwIfNoTeamAccess(req, res);
+  const organizationMember = await throwIfNoOrganizationAccess(req, res);
 
-  throwIfNotAllowed(teamMember, 'team_dsync', 'read');
+  throwIfNotAllowed(organizationMember, 'organization_dsync', 'read');
 
   await throwIfNoAccessToDirectory({
-    teamId: teamMember.team.id,
+    organizationId: organizationMember.organization.id,
     directoryId: req.query.directoryId as string,
   });
 
@@ -81,12 +81,12 @@ const handlePATCH = async (req: NextApiRequest, res: NextApiResponse) => {
 };
 
 const handleDELETE = async (req: NextApiRequest, res: NextApiResponse) => {
-  const teamMember = await throwIfNoTeamAccess(req, res);
+  const organizationMember = await throwIfNoOrganizationAccess(req, res);
 
-  throwIfNotAllowed(teamMember, 'team_dsync', 'delete');
+  throwIfNotAllowed(organizationMember, 'organization_dsync', 'delete');
 
   await throwIfNoAccessToDirectory({
-    teamId: teamMember.team.id,
+    organizationId: organizationMember.organization.id,
     directoryId: req.query.directoryId as string,
   });
 
@@ -95,8 +95,8 @@ const handleDELETE = async (req: NextApiRequest, res: NextApiResponse) => {
   sendAudit({
     action: 'dsync.connection.delete',
     crud: 'd',
-    user: teamMember.user,
-    team: teamMember.team,
+    user: organizationMember.user,
+    organization: organizationMember.organization,
   });
 
   res.status(200).json(data);

@@ -9,14 +9,14 @@ import { useTranslation } from 'next-i18next';
 import type { ApiResponse } from 'types';
 import { defaultHeaders, maxLengthPolicies } from '@/lib/common';
 import { availableRoles } from '@/lib/permissions';
-import type { Team } from '@prisma/client';
+import type { Organization } from '@prisma/client';
 
 interface InviteViaEmailProps {
-  team: Team;
+  organization: Organization;
   setVisible: (visible: boolean) => void;
 }
 
-const InviteViaEmail = ({ setVisible, team }: InviteViaEmailProps) => {
+const InviteViaEmail = ({ setVisible, organization }: InviteViaEmailProps) => {
   const { t } = useTranslation('common');
 
   const FormValidationSchema = Yup.object().shape({
@@ -37,7 +37,7 @@ const InviteViaEmail = ({ setVisible, team }: InviteViaEmailProps) => {
     },
     validationSchema: FormValidationSchema,
     onSubmit: async (values) => {
-      const response = await fetch(`/api/teams/${team.slug}/invitations`, {
+      const response = await fetch(`/api/organizations/${organization.slug}/invitations`, {
         method: 'POST',
         headers: defaultHeaders,
         body: JSON.stringify(values),
@@ -50,7 +50,7 @@ const InviteViaEmail = ({ setVisible, team }: InviteViaEmailProps) => {
       }
 
       toast.success(t('invitation-sent'));
-      mutate(`/api/teams/${team.slug}/invitations?sentViaEmail=true`);
+      mutate(`/api/organizations/${organization.slug}/invitations?sentViaEmail=true`);
       setVisible(false);
       formik.resetForm();
     },

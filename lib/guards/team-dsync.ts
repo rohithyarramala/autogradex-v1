@@ -2,13 +2,13 @@ import { ApiError } from '../errors';
 import { dsyncManager } from '@/lib/jackson/dsync/index';
 
 type GuardOptions = {
-  teamId: string;
+  organizationId: string;
   directoryId: string;
 };
 
 // Throw if the user is not allowed to access given Directory connection.
 export const throwIfNoAccessToDirectory = async ({
-  teamId,
+  organizationId,
   directoryId,
 }: GuardOptions) => {
   if (!directoryId) {
@@ -19,7 +19,7 @@ export const throwIfNoAccessToDirectory = async ({
 
   const { data: connection } = await dsync.getConnectionById(directoryId);
 
-  if (connection.tenant === teamId) {
+  if (connection.tenant === organizationId) {
     return;
   }
 

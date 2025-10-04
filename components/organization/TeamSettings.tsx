@@ -1,6 +1,6 @@
 import { Card, InputWithLabel } from '@/components/shared';
 import { defaultHeaders } from '@/lib/common';
-import { Team } from '@prisma/client';
+import { Organization } from '@prisma/client';
 import { useFormik } from 'formik';
 import { useTranslation } from 'next-i18next';
 import { useRouter } from 'next/router';
@@ -13,17 +13,18 @@ import { AccessControl } from '../shared/AccessControl';
 import { z } from 'zod';
 import { updateTeamSchema } from '@/lib/zod';
 import useTeams from 'hooks/useOrganizations';
+import useOrganizations from 'hooks/useOrganizations';
 
-const TeamSettings = ({ team }: { team: Team }) => {
+const TeamSettings = ({ organization }: { organization: Organization }) => {
   const router = useRouter();
   const { t } = useTranslation('common');
-  const { mutateTeams } = useTeams();
+  const { mutateOrganizations } = useOrganizations();
 
   const formik = useFormik<z.infer<typeof updateTeamSchema>>({
     initialValues: {
-      name: team.name,
-      slug: team.slug,
-      domain: team.domain || '',
+      name: organization.name,
+      slug: organization.slug,
+      domain: organization.domain || '',
     },
     validateOnBlur: false,
     enableReinitialize: true,
@@ -35,13 +36,13 @@ const TeamSettings = ({ team }: { team: Team }) => {
       }
     },
     onSubmit: async (values) => {
-      const response = await fetch(`/api/teams/${team.slug}`, {
+      const response = await fetch(`/api/organizations/${organization.slug}`, {
         method: 'PUT',
         headers: defaultHeaders,
         body: JSON.stringify(values),
       });
 
-      const json = (await response.json()) as ApiResponse<Team>;
+      const json = (await response.json()) as ApiResponse<Organization>;
 
       if (!response.ok) {
         toast.error(json.error.message);
@@ -49,8 +50,8 @@ const TeamSettings = ({ team }: { team: Team }) => {
       }
 
       toast.success(t('successfully-updated'));
-      mutateTeams();
-      router.push(`/teams/${json.data.slug}/settings`);
+      mutateOrganizations();
+      router.push(`/organizations/${json.data.slug}/settings`);
     },
   });
 
@@ -60,34 +61,34 @@ const TeamSettings = ({ team }: { team: Team }) => {
         <Card>
           <Card.Body>
             <Card.Header>
-              <Card.Title>{t('team-settings')}</Card.Title>
-              <Card.Description>{t('team-settings-config')}</Card.Description>
+              <Card.Title>{t('organization-settings')}</Card.Title>
+              <Card.Description>{t('organization-settings-config')}</Card.Description>
             </Card.Header>
             <div className="flex flex-col gap-4">
               <InputWithLabel
                 name="name"
-                label={t('team-name')}
+                label={t('organization-name')}
                 value={formik.values.name}
                 onChange={formik.handleChange}
                 error={formik.errors.name}
               />
               <InputWithLabel
                 name="slug"
-                label={t('team-slug')}
+                label={t('organization-slug')}
                 value={formik.values.slug}
                 onChange={formik.handleChange}
                 error={formik.errors.slug}
               />
               <InputWithLabel
                 name="domain"
-                label={t('team-domain')}
+                label={t('organization-domain')}
                 value={formik.values.domain ? formik.values.domain : ''}
                 onChange={formik.handleChange}
                 error={formik.errors.domain}
               />
             </div>
           </Card.Body>
-          <AccessControl resource="team" actions={['update']}>
+          <AccessControl resource="organization" actions={['update']}>
             <Card.Footer>
               <div className="flex justify-end">
                 <Button

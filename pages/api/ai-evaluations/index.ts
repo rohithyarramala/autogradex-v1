@@ -18,7 +18,8 @@ async function handleFileUpload(req: NextApiRequest) {
     uploadDir,
     keepExtensions: true,
     multiples: false,
-    filename: (name, ext, part) => `${Date.now()}-${part.originalFilename || name}${ext}`,
+    filename: (name, ext, part) =>
+      `${Date.now()}-${part.originalFilename || name}${ext}`,
   });
 
   return new Promise((resolve, reject) => {
@@ -29,7 +30,10 @@ async function handleFileUpload(req: NextApiRequest) {
   });
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   try {
     switch (req.method) {
       case 'GET': {
@@ -59,25 +63,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         break;
       }
       case 'POST': {
-        const { fields, files } = await handleFileUpload(req);
+        const { fields, files } = (await handleFileUpload(req)) as {
+          fields: formidable.Fields;
+          files: formidable.Files;
+        };
 
         const year = new Date().getFullYear().toString();
         const evaluationData = {
           name: Array.isArray(fields.name) ? fields.name[0] : fields.name,
-          classId: Array.isArray(fields.classId) ? fields.classId[0] : fields.classId,
-          sectionId: Array.isArray(fields.sectionId) ? fields.sectionId[0] : fields.sectionId,
-          subjectId: Array.isArray(fields.subjectId) ? fields.subjectId[0] : fields.subjectId,
+          classId: Array.isArray(fields.classId)
+            ? fields.classId[0]
+            : fields.classId,
+          sectionId: Array.isArray(fields.sectionId)
+            ? fields.sectionId[0]
+            : fields.sectionId,
+          subjectId: Array.isArray(fields.subjectId)
+            ? fields.subjectId[0]
+            : fields.subjectId,
           maxMarks: Number(fields.maxMarks),
-          questionPdf: files.questionPaper && Array.isArray(files.questionPaper) && files.questionPaper[0]?.filepath
-            ? `/files/${path.basename(files.questionPaper[0].filepath)}`
-            : '',
-          answerKey: files.keyScript && Array.isArray(files.keyScript) && files.keyScript[0]?.filepath
-            ? `/files/${path.basename(files.keyScript[0].filepath)}`
-            : '',
+          questionPdf:
+            files.questionPaper &&
+            !Array.isArray(files.questionPaper) &&
+            files.questionPaper?.filepath
+              ? `/files/${path.basename(files.questionPaper[0].filepath)}`
+              : '',
+          answerKey:
+            files.keyScript &&
+            !Array.isArray(files.keyScript) &&
+            files.keyScript?.filepath
+              ? `/files/${path.basename(files.keyScript[0].filepath)}`
+              : '',
           status: 'pending',
-          createdBy: Array.isArray(fields.createdBy) ? fields.createdBy[0] : fields.createdBy,
+          createdBy: Array.isArray(fields.createdBy)
+            ? fields.createdBy[0]
+            : fields.createdBy,
         };
-
 
         // Validate required fields
         if (
@@ -91,28 +111,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         // Validate foreign keys
-        const user = await prisma.user.findUnique({ where: { id: evaluationData.createdBy } });
+        const user = await prisma.user.findUnique({
+          where: { id: evaluationData.createdBy },
+        });
         if (!user) {
           return res.status(400).json({
             error: `Invalid createdBy value: ${evaluationData.createdBy} does not exist in User table`,
           });
         }
 
-        const classRecord = await prisma.class.findUnique({ where: { id: evaluationData.classId } });
+        const classRecord = await prisma.class.findUnique({
+          where: { id: evaluationData.classId },
+        });
         if (!classRecord) {
           return res.status(400).json({
             error: `Invalid classId: ${evaluationData.classId} does not exist in Class table`,
           });
         }
 
-        const section = await prisma.section.findUnique({ where: { id: evaluationData.sectionId } });
+        const section = await prisma.section.findUnique({
+          where: { id: evaluationData.sectionId },
+        });
         if (!section) {
           return res.status(400).json({
             error: `Invalid sectionId: ${evaluationData.sectionId} does not exist in Section table`,
           });
         }
 
-        const subject = await prisma.subject.findUnique({ where: { id: evaluationData.subjectId } });
+        const subject = await prisma.subject.findUnique({
+          where: { id: evaluationData.subjectId },
+        });
         if (!subject) {
           return res.status(400).json({
             error: `Invalid subjectId: ${evaluationData.subjectId} does not exist in Subject table`,
@@ -152,13 +180,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       case 'DELETE': {
         const { id } = req.query;
+
         if (!id) {
           return res.status(400).json({ error: 'Missing evaluation ID' });
         }
-        await prisma.evaluation.delete({ where: { id: id } });
+
+        // req.query values are always string | string[] in Next.js
+        const evaluationId = Array.isArray(id) ? id[0] : id;
+
+        // Delete from Prisma
+        await prisma.evaluation.delete({ where: { id: evaluationId } });
+
         res.status(204).end();
         break;
       }
+
       default:
         res.setHeader('Allow', ['GET', 'POST', 'DELETE']);
         res.status(405).end(`Method ${req.method} Not Allowed`);

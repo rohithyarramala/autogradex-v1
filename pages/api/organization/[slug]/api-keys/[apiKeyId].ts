@@ -1,5 +1,5 @@
 import { deleteApiKey } from 'models/apiKey';
-import { getCurrentUserWithTeam, throwIfNoTeamAccess } from 'models/organization';
+import { getCurrentUserWithTeam, throwIfNoOrganizationAccess } from 'models/organization';
 import { throwIfNotAllowed } from 'models/user';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { recordMetric } from '@/lib/metrics';
@@ -13,11 +13,11 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
-    if (!env.teamFeatures.apiKey) {
+    if (!env.organizationFeatures.apiKey) {
       throw new ApiError(404, 'Not Found');
     }
 
-    await throwIfNoTeamAccess(req, res);
+    await throwIfNoOrganizationAccess(req, res);
 
     switch (req.method) {
       case 'DELETE':
@@ -41,11 +41,11 @@ export default async function handler(
 const handleDELETE = async (req: NextApiRequest, res: NextApiResponse) => {
   const user = await getCurrentUserWithTeam(req, res);
 
-  throwIfNotAllowed(user, 'team_api_key', 'delete');
+  throwIfNotAllowed(user, 'organization_api_key', 'delete');
 
   const { apiKeyId } = validateWithSchema(deleteApiKeySchema, req.query);
 
-  await throwIfNoAccessToApiKey(apiKeyId, user.team.id);
+  await throwIfNoAccessToApiKey(apiKeyId, user.organization.id);
 
   await deleteApiKey(apiKeyId);
 

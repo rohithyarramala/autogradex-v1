@@ -1,6 +1,6 @@
 import env from '@/lib/env';
 import { sendAudit } from '@/lib/retraced';
-import { throwIfNoTeamAccess } from 'models/organization';
+import { throwIfNoOrganizationAccess } from 'models/organization';
 import { throwIfNotAllowed } from 'models/user';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { ApiError } from '@/lib/errors';
@@ -15,7 +15,7 @@ export default async function handler(
   const { method } = req;
 
   try {
-    if (!env.teamFeatures.dsync) {
+    if (!env.organizationFeatures.dsync) {
       throw new ApiError(404, 'Not Found');
     }
 
@@ -44,34 +44,34 @@ export default async function handler(
 }
 
 const handleGET = async (req: NextApiRequest, res: NextApiResponse) => {
-  const teamMember = await throwIfNoTeamAccess(req, res);
+  const organizationMember = await throwIfNoOrganizationAccess(req, res);
 
-  throwIfNotAllowed(teamMember, 'team_dsync', 'read');
+  throwIfNotAllowed(organizationMember, 'organization_dsync', 'read');
 
   const connections = await dsync.getConnections({
-    tenant: teamMember.teamId,
+    tenant: organizationMember.organization.id,
   });
 
   res.status(200).json(connections);
 };
 
 const handlePOST = async (req: NextApiRequest, res: NextApiResponse) => {
-  const teamMember = await throwIfNoTeamAccess(req, res);
+  const organizationMember = await throwIfNoOrganizationAccess(req, res);
 
-  throwIfNotAllowed(teamMember, 'team_dsync', 'create');
+  throwIfNotAllowed(organizationMember, 'organization_dsync', 'create');
 
   const { body } = req;
 
   const connection = await dsync.createConnection({
     ...body,
-    tenant: teamMember.teamId,
+    tenant: organizationMember.organizationId,
   });
 
   sendAudit({
     action: 'dsync.connection.create',
     crud: 'c',
-    user: teamMember.user,
-    team: teamMember.team,
+    user: organizationMember.user,
+    organization: organizationMember.organization,
   });
 
   res.status(201).json(connection);

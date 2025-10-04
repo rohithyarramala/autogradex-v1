@@ -6,7 +6,7 @@ export const getStudents = async (organizationId: string) => {
     where: {
       organizationMember: {
         some: {
-          teamId: organizationId,
+          organizationId: organizationId,
           role: 'STUDENT',
         },
       },
@@ -29,7 +29,7 @@ export const createStudent = async (data: any, organizationId: string) => {
       email: data.email,
       password: data.password,
       organizationMember: {
-        create: [{ teamId: organizationId, role: 'STUDENT' }],
+        create: [{ organizationId: organizationId, role: 'STUDENT' }],
       },
     },
   });

@@ -86,8 +86,8 @@ export class LoginPage {
     await expect(this.multipleTeamErrorText).toBeVisible();
   }
 
-  async loggedInCheck(teamSlug: string) {
-    await this.page.waitForURL(`/teams/${teamSlug}/${loggedInPath}`);
+  async loggedInCheck(organizationSlug: string) {
+    await this.page.waitForURL(`/organizations/${organizationSlug}/${loggedInPath}`);
     await expect(this.pageHeading).toBeVisible();
   }
 
@@ -112,8 +112,8 @@ export class LoginPage {
     }
   }
 
-  async ssoLoginWithSlug(teamSlug: string) {
-    await this.slugInput.fill(teamSlug);
+  async ssoLoginWithSlug(organizationSlug: string) {
+    await this.slugInput.fill(organizationSlug);
     await this.continueWithSSOButton.click();
     await expect(this.mockSAMLLoginHeading).toBeVisible();
     await this.signInButton.click();

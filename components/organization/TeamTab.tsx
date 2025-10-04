@@ -15,99 +15,99 @@ import { TeamFeature } from 'types';
 
 interface TeamTabProps {
   activeTab: string;
-  team: Organization;
+  organization: Organization;
   heading?: string;
-  teamFeatures: TeamFeature;
+  organizationFeatures: TeamFeature;
 }
 
-const TeamTab = ({ activeTab, team, heading, teamFeatures }: TeamTabProps) => {
+const TeamTab = ({ activeTab, organization, heading, organizationFeatures }: TeamTabProps) => {
   const { canAccess } = useCanAccess();
 
   const navigations = [
     {
       name: 'Settings',
-      href: `/teams/${team.slug}/settings`,
+      href: `/organizations/${organization.slug}/settings`,
       active: activeTab === 'settings',
       icon: Cog6ToothIcon,
     },
   ];
 
-  if (canAccess('team_member', ['create', 'update', 'read', 'delete'])) {
+  if (canAccess('organization_member', ['create', 'update', 'read', 'delete'])) {
     navigations.push({
       name: 'Members',
-      href: `/teams/${team.slug}/members`,
+      href: `/organizations/${organization.slug}/members`,
       active: activeTab === 'members',
       icon: UserPlusIcon,
     });
   }
 
   if (
-    teamFeatures.sso &&
-    canAccess('team_sso', ['create', 'update', 'read', 'delete'])
+    organizationFeatures.sso &&
+    canAccess('organization_sso', ['create', 'update', 'read', 'delete'])
   ) {
     navigations.push({
       name: 'Single Sign-On',
-      href: `/organizations/${team.slug}/sso`,
+      href: `/organizations/${organization.slug}/sso`,
       active: activeTab === 'sso',
       icon: ShieldExclamationIcon,
     });
   }
 
   if (
-    teamFeatures.dsync &&
-    canAccess('team_dsync', ['create', 'update', 'read', 'delete'])
+    organizationFeatures.dsync &&
+    canAccess('organization_dsync', ['create', 'update', 'read', 'delete'])
   ) {
     navigations.push({
       name: 'Directory Sync',
-      href: `/organizations/${team.slug}/directory-sync`,
+      href: `/organizations/${organization.slug}/directory-sync`,
       active: activeTab === 'directory-sync',
       icon: UserPlusIcon,
     });
   }
 
   if (
-    teamFeatures.auditLog &&
-    canAccess('team_audit_log', ['create', 'update', 'read', 'delete'])
+    organizationFeatures.auditLog &&
+    canAccess('organization_audit_log', ['create', 'update', 'read', 'delete'])
   ) {
     navigations.push({
       name: 'Audit Logs',
-      href: `/organizations/${team.slug}/audit-logs`,
+      href: `/organizations/${organization.slug}/audit-logs`,
       active: activeTab === 'audit-logs',
       icon: DocumentMagnifyingGlassIcon,
     });
   }
 
   if (
-    teamFeatures.payments &&
-    canAccess('team_payments', ['create', 'update', 'read', 'delete'])
+    organizationFeatures.payments &&
+    canAccess('organization_payments', ['create', 'update', 'read', 'delete'])
   ) {
     navigations.push({
       name: 'Billing',
-      href: `/organizations/${team.slug}/billing`,
+      href: `/organizations/${organization.slug}/billing`,
       active: activeTab === 'payments',
       icon: BanknotesIcon,
     });
   }
 
   if (
-    teamFeatures.webhook &&
-    canAccess('team_webhook', ['create', 'update', 'read', 'delete'])
+    organizationFeatures.webhook &&
+    canAccess('organization_webhook', ['create', 'update', 'read', 'delete'])
   ) {
     navigations.push({
       name: 'Webhooks',
-      href: `/organizations/${team.slug}/webhooks`,
+      href: `/organizations/${organization.slug}/webhooks`,
       active: activeTab === 'webhooks',
       icon: PaperAirplaneIcon,
     });
   }
 
   if (
-    teamFeatures.apiKey &&
-    canAccess('team_api_key', ['create', 'update', 'read', 'delete'])
+    organizationFeatures.apiKey &&
+    canAccess('organization_api_key', ['create', 'update', 'read', 'delete'])
   ) {
     navigations.push({
       name: 'API Keys',
-      href: `/organizations/${team.slug}/api-keys`,
+      href: `/organizations/${organization.slug}/api-keys`,
       active: activeTab === 'api-keys',
       icon: KeyIcon,
     });
@@ -116,7 +116,7 @@ const TeamTab = ({ activeTab, team, heading, teamFeatures }: TeamTabProps) => {
   return (
     <div className="flex flex-col pb-6">
       <h2 className="text-xl font-semibold mb-2">
-        {heading ? heading : team.name}
+        {heading ? heading : organization.name}
       </h2>
       <nav
         className=" flex flex-wrap border-b border-gray-300"

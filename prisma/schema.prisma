@@ -97,22 +97,22 @@ model Organization {
 
 model OrganizationMember {
   id        String   @id @default(uuid())
-  teamId    String
+  organizationId    String
   userId    String
   role      Role     @default(TEACHER)
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
 
-  organization Organization @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([teamId, userId])
+  @@unique([organizationId, userId])
   @@index([userId])
 }
 
 model Invitation {
   id             String   @id @default(uuid())
-  teamId         String
+  organizationId         String
   email          String?
   role           Role     @default(TEACHER)
   token          String   @unique
@@ -124,9 +124,9 @@ model Invitation {
   allowedDomains String[] @default([])
 
   user User @relation(fields: [invitedBy], references: [id], onDelete: Cascade)
-  organization Organization @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@unique([teamId, email])
+  @@unique([organizationId, email])
   @@index([email])
 }
 
@@ -142,16 +142,16 @@ model PasswordReset {
 model ApiKey {
   id         String    @id @default(uuid())
   name       String
-  teamId     String
+  organizationId     String
   hashedKey  String    @unique
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @default(now())
   expiresAt  DateTime?
   lastUsedAt DateTime?
 
-  organization Organization @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@index([teamId])
+  @@index([organizationId])
 }
 
 model Subscription {

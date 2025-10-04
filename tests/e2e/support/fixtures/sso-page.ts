@@ -34,7 +34,7 @@ export class SSOPage {
 
   constructor(
     public readonly page: Page,
-    public readonly teamSlug: string
+    public readonly organizationSlug: string
   ) {
     this.pageHeader = this.page.getByRole('heading', {
       name: 'Manage SSO Connections',
@@ -98,7 +98,7 @@ export class SSOPage {
     }
     const url = productId
       ? `/products/${productId}/sso`
-      : `/teams/${this.teamSlug}/sso`;
+      : `/organizations/${this.organizationSlug}/sso`;
     await this.page.goto(url);
     await expect(this.pageHeader).toBeVisible();
   }

@@ -14,12 +14,12 @@ import LinkToPortal from '@/components/billing/LinkToPortal';
 import Subscriptions from '@/components/billing/Subscriptions';
 import ProductPricing from '@/components/billing/ProductPricing';
 
-const Payments = ({ teamFeatures }) => {
+const Payments = ({ organizationFeatures }) => {
   const { t } = useTranslation('common');
   const { canAccess } = useCanAccess();
-  const { isLoading, isError, team } = useTeam();
+  const { isLoading, isError, organization } = useTeam();
   const { data } = useSWR(
-    team?.slug ? `/api/teams/${team?.slug}/payments/products` : null,
+    organization?.slug ? `/api/organizations/${organization?.slug}/payments/products` : null,
     fetcher
   );
 
@@ -31,8 +31,8 @@ const Payments = ({ teamFeatures }) => {
     return <Error message={isError.message} />;
   }
 
-  if (!team) {
-    return <Error message={t('team-not-found')} />;
+  if (!organization) {
+    return <Error message={t('organization-not-found')} />;
   }
 
   const plans = data?.data?.products || [];
@@ -40,16 +40,16 @@ const Payments = ({ teamFeatures }) => {
 
   return (
     <>
-      {canAccess('team_payments', ['read']) && (
+      {canAccess('organization_payments', ['read']) && (
         <>
           <TeamTab
             activeTab="payments"
-            team={team}
-            teamFeatures={teamFeatures}
+            organization={organization}
+            organizationFeatures={organizationFeatures}
           />
 
           <div className="flex gap-6 flex-col md:flex-row">
-            <LinkToPortal team={team} />
+            <LinkToPortal organization={organization} />
             <Help />
           </div>
 
@@ -67,7 +67,7 @@ const Payments = ({ teamFeatures }) => {
 export async function getServerSideProps({
   locale,
 }: GetServerSidePropsContext) {
-  if (!env.teamFeatures.payments) {
+  if (!env.organizationFeatures.payments) {
     return {
       notFound: true,
     };
@@ -76,7 +76,7 @@ export async function getServerSideProps({
   return {
     props: {
       ...(locale ? await serverSideTranslations(locale, ['common']) : {}),
-      teamFeatures: env.teamFeatures,
+      organizationFeatures: env.organizationFeatures,
     },
   };
 }

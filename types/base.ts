@@ -16,7 +16,7 @@ export type ApiResponse<T = unknown> =
       error: ApiError;
     };
 
-export type TeamWithMemberCount = Prisma.TeamGetPayload<{
+export type TeamWithMemberCount = Prisma.OrganizationGetPayload<{
   include: {
     _count: {
       select: { members: true };
@@ -44,10 +44,10 @@ export type AppEvent =
   | 'user.updated'
   | 'user.signup'
   | 'user.password.reset'
-  | 'team.fetched'
-  | 'team.created'
-  | 'team.updated'
-  | 'team.removed'
+  | 'organization.fetched'
+  | 'organization.created'
+  | 'organization.updated'
+  | 'organization.removed'
   | 'apikey.created'
   | 'apikey.removed'
   | 'apikey.fetched'

@@ -123,7 +123,7 @@ const StudentsPage = () => {
         <Button
           color="success"
           onClick={() => {
-            setEditingStudent({ id: 0, name: "", rollNo: "", className: "", section: "" });
+            setEditingStudent({ id: 0, name: "", email: "", rollNo: "", className: "", section: "" });
             setOpenModal(true);
           }}
         >

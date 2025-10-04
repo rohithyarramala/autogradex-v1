@@ -4,7 +4,7 @@ import { ApiError } from '../errors';
 import { ssoManager } from '@/lib/jackson/sso/index';
 
 type GuardOptions = {
-  teamId: string;
+  organizationId: string;
   clientId: string | null;
 };
 
@@ -23,7 +23,7 @@ export const extractClientId = (req: NextApiRequest) => {
 
 // Throw if the user is not allowed to access given SSO connection.
 export const throwIfNoAccessToConnection = async ({
-  teamId,
+  organizationId,
   clientId,
 }: GuardOptions) => {
   if (!clientId) {
@@ -40,7 +40,7 @@ export const throwIfNoAccessToConnection = async ({
     return;
   }
 
-  if (connections[0].tenant === teamId) {
+  if (connections[0].tenant === organizationId) {
     return;
   }
 

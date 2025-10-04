@@ -16,7 +16,7 @@ import type { NextPageWithLayout } from 'types';
 
 const Organizations: NextPageWithLayout<
   InferGetServerSidePropsType<typeof getServerSideProps>
-> = ({ teams }) => {
+> = ({ organizations }) => {
   const router = useRouter();
   const { t } = useTranslation('common');
   const { status } = useSession();
@@ -26,8 +26,8 @@ const Organizations: NextPageWithLayout<
   }
 
   useEffect(() => {
-    if (teams === null) {
-      toast.error(t('no-active-team'));
+    if (organizations === null) {
+      toast.error(t('no-active-organization'));
       return;
     }
 
@@ -37,7 +37,7 @@ const Organizations: NextPageWithLayout<
   return (
     <>
       <div className="mb-6 flex w-1/2 flex-col items-center gap-4 p-3">
-        <h3>{t('choose-team')}</h3>
+        <h3>{t('choose-organization')}</h3>
         <div className="w-3/5 rounded bg-white dark:border dark:border-gray-700 dark:bg-gray-800 sm:max-w-md md:mt-0 xl:p-0"></div>
       </div>
     </>
@@ -57,12 +57,12 @@ export const getServerSideProps = async (
 
   deleteCookie('pending-invite', { req, res });
 
-  const teams = await getOrganizations(session?.user.id as string);
+  const organizations = await getOrganizations(session?.user.id as string);
 
   return {
     props: {
       ...(locale ? await serverSideTranslations(locale, ['common']) : {}),
-      teams: JSON.parse(JSON.stringify(teams)),
+      organizations: JSON.parse(JSON.stringify(organizations)),
     },
   };
 };

@@ -7,7 +7,7 @@ import { getViewerToken } from '@/lib/retraced';
 import { getSession } from '@/lib/session';
 import useCanAccess from 'hooks/useCanAccess';
 import useTeam from 'hooks/useOrganization';
-import { getTeamMember } from 'models/organization';
+import { getOrganizationMember } from 'models/organization';
 import { throwIfNotAllowed } from 'models/user';
 import { GetServerSidePropsContext } from 'next';
 import { useTranslation } from 'next-i18next';
@@ -32,11 +32,11 @@ const Events: NextPageWithLayout<inferSSRProps<typeof getServerSideProps>> = ({
   auditLogToken,
   retracedHost,
   error,
-  teamFeatures,
+  organizationFeatures,
 }) => {
   const { t } = useTranslation('common');
   const { canAccess } = useCanAccess();
-  const { isLoading, isError, team } = useTeam();
+  const { isLoading, isError, organization } = useTeam();
 
   if (isLoading) {
     return <Loading />;
@@ -46,16 +46,16 @@ const Events: NextPageWithLayout<inferSSRProps<typeof getServerSideProps>> = ({
     return <Error message={isError?.message || error?.message} />;
   }
 
-  if (!team) {
-    return <Error message={t('team-not-found')} />;
+  if (!organization) {
+    return <Error message={t('organization-not-found')} />;
   }
 
   return (
     <>
-      <TeamTab activeTab="audit-logs" team={team} teamFeatures={teamFeatures} />
+      <TeamTab activeTab="audit-logs" organization={organization} organizationFeatures={organizationFeatures} />
       <Card>
         <Card.Body>
-          {canAccess('team_audit_log', ['read']) && auditLogToken && (
+          {canAccess('organization_audit_log', ['read']) && auditLogToken && (
             <RetracedEventsBrowser
               host={`${retracedHost}/viewer/v1`}
               auditLogToken={auditLogToken}
@@ -69,7 +69,7 @@ const Events: NextPageWithLayout<inferSSRProps<typeof getServerSideProps>> = ({
 };
 
 export async function getServerSideProps(context: GetServerSidePropsContext) {
-  if (!env.teamFeatures.auditLog) {
+  if (!env.organizationFeatures.auditLog) {
     return {
       notFound: true,
     };
@@ -78,16 +78,16 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
   const { locale, req, res, query } = context;
 
   const session = await getSession(req, res);
-  const teamMember = await getTeamMember(
+  const organizationMember = await getOrganizationMember(
     session?.user.id as string,
     query.slug as string
   );
 
   try {
-    throwIfNotAllowed(teamMember, 'team_audit_log', 'read');
+    throwIfNotAllowed(organizationMember, 'organization_audit_log', 'read');
 
     const auditLogToken = await getViewerToken(
-      teamMember.team.id,
+      organizationMember.organization.id,
       session?.user.id as string
     );
 
@@ -97,7 +97,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
         error: null,
         auditLogToken: auditLogToken ?? '',
         retracedHost: env.retraced.url ?? '',
-        teamFeatures: env.teamFeatures,
+        organizationFeatures: env.organizationFeatures,
       },
     };
   } catch (error: unknown) {
@@ -110,7 +110,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
         },
         auditLogToken: null,
         retracedHost: null,
-        teamFeatures: env.teamFeatures,
+        organizationFeatures: env.organizationFeatures,
       },
     };
   }

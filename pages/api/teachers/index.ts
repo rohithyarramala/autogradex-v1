@@ -17,9 +17,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json(teachers);
     case 'POST':
       // Create a new teacher
-      const { name, email, password, teamId } = req.body;
+      const { name, email, password, organizationId } = req.body;
       
-      if (!name || !email || !password || !teamId) {
+      if (!name || !email || !password || !organizationId) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
       try {
@@ -32,7 +32,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Add to OrganizationMember with role TEACHER
         await prisma.organizationMember.create({
           data: {
-            teamId,
+            organizationId,
             userId: user.id,
             role: 'TEACHER',
           },

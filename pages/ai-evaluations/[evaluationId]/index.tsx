@@ -15,7 +15,7 @@ interface Student {
 
 interface EvaluationSubmission {
   id: string;
-  status: 'pending' | 'uploaded' | 'absent' | 'evaluated';
+  status: 'pending' | 'uploaded' | 'absent' | 'evaluated' | 'submitted';
   totalMark?: number;
   scriptPdf?: string;
   student: Student;

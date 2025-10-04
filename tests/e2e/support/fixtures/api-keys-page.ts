@@ -13,7 +13,7 @@ export class ApiKeysPage {
 
   constructor(
     public readonly page: Page,
-    public readonly teamSlug: string
+    public readonly organizationSlug: string
   ) {
     this.modalCreateApiKeyButton = this.page
       .getByLabel('Modal')
@@ -36,8 +36,8 @@ export class ApiKeysPage {
   }
 
   async goto() {
-    await this.page.goto(`/teams/${this.teamSlug}/api-keys`);
-    await this.page.waitForURL(`/teams/${this.teamSlug}/api-keys`);
+    await this.page.goto(`/organizations/${this.organizationSlug}/api-keys`);
+    await this.page.waitForURL(`/organizations/${this.organizationSlug}/api-keys`);
     await expect(
       this.page.getByRole('heading', { name: 'API Keys', exact: true })
     ).toBeVisible();

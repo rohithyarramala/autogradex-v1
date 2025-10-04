@@ -1,12 +1,12 @@
 import { DirectorySyncEvent } from '@boxyhq/saml-jackson';
 import { Role } from '@prisma/client';
-import { addTeamMember, removeTeamMember } from 'models/organization';
+import { addOrganizationMember, removeOrganizationMember } from 'models/organization';
 import { deleteUser, getUser, updateUser, upsertUser } from 'models/user';
-import { countTeamMembers } from 'models/organizationMember';
+import { countOrganizationMembers } from 'models/organizationMember';
 
 // Handle SCIM events
 export const handleEvents = async (event: DirectorySyncEvent) => {
-  const { event: action, tenant: teamId, data } = event;
+  const { event: action, tenant: organizationId, data } = event;
 
   // Currently we only handle the user events
   // TODO: Handle group events
@@ -32,7 +32,7 @@ export const handleEvents = async (event: DirectorySyncEvent) => {
       },
     });
 
-    await addTeamMember(teamId, user.id, Role.MEMBER);
+    await addOrganizationMember(organizationId, user.id, Role.STUDENT);
   }
 
   // User has been updated
@@ -43,17 +43,17 @@ export const handleEvents = async (event: DirectorySyncEvent) => {
       return;
     }
 
-    // Deactivation of user by removing them from the team
+    // Deactivation of user by removing them from the organization
     if (active === false) {
-      await removeTeamMember(teamId, user.id);
+      await removeOrganizationMember(organizationId, user.id);
 
-      const otherTeamsCount = await countTeamMembers({
+      const otherOrganizationsCount = await countOrganizationMembers({
         where: {
           userId: user.id,
         },
       });
 
-      if (otherTeamsCount === 0) {
+      if (otherOrganizationsCount === 0) {
         await deleteUser({ email: user.email });
       }
 
@@ -69,8 +69,8 @@ export const handleEvents = async (event: DirectorySyncEvent) => {
       },
     });
 
-    // Reactivation of user by adding them back to the team
-    await addTeamMember(teamId, user.id, Role.MEMBER);
+    // Reactivation of user by adding them back to the organization
+    await addOrganizationMember(organizationId, user.id, Role.STUDENT);
   }
 
   // User has been removed
@@ -81,15 +81,15 @@ export const handleEvents = async (event: DirectorySyncEvent) => {
       return;
     }
 
-    await removeTeamMember(teamId, user.id);
+    await removeOrganizationMember(organizationId, user.id);
 
-    const otherTeamsCount = await countTeamMembers({
+    const otherOrganizationsCount = await countOrganizationMembers({
       where: {
         userId: user.id,
       },
     });
 
-    if (otherTeamsCount === 0) {
+    if (otherOrganizationsCount === 0) {
       await deleteUser({ email: user.email });
     }
   }

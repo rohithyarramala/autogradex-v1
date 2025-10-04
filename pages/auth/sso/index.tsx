@@ -58,11 +58,11 @@ const SSO: NextPageWithLayout<
       if (data.useSlug) {
         formik.resetForm();
         setUseEmail(false);
-        toast.error(t('multiple-sso-teams'));
+        toast.error(t('multiple-sso-organizations'));
         return;
       }
       await signIn('boxyhq-saml', undefined, {
-        tenant: data.teamId,
+        tenant: data.organizationId,
         product: jacksonProductId,
       });
     },
@@ -101,7 +101,7 @@ const SSO: NextPageWithLayout<
                 name="slug"
                 placeholder="boxyhq"
                 value={formik.values.slug}
-                descriptionText="Contact your administrator to get your team slug"
+                descriptionText="Contact your administrator to get your organization slug"
                 error={formik.touched.slug ? formik.errors.slug : undefined}
                 onChange={formik.handleChange}
               />

@@ -34,8 +34,11 @@ interface AiDataItem {
 }
 
 interface SubmissionData {
-  aiResult?: { ai_data: AiDataItem[] } | null; // Adjusted to match backend structure
-  totalMarkAwarded: number;
+  aiResult?: { 
+    totalMarkAwarded: number;
+    totalMarks: number;
+    ai_data: AiDataItem[];
+   } | null; // Adjusted to match backend structure
   scriptPdf?: string;
   evaluation?: {
     questionPdf?: string;

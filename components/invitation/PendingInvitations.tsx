@@ -1,6 +1,6 @@
 import { Error, LetterAvatar, Loading } from '@/components/shared';
 import { defaultHeaders } from '@/lib/common';
-import { Team } from '@prisma/client';
+import { Organization } from '@prisma/client';
 import useInvitations from 'hooks/useInvitations';
 import { useTranslation } from 'next-i18next';
 import React, { useState } from 'react';
@@ -10,7 +10,7 @@ import ConfirmationDialog from '../shared/ConfirmationDialog';
 import { TeamInvitation } from 'models/invitation';
 import { Table } from '@/components/shared/table/Table';
 
-const PendingInvitations = ({ team }: { team: Team }) => {
+const PendingInvitations = ({ organization }: { organization: Organization }) => {
   const [selectedInvitation, setSelectedInvitation] =
     useState<TeamInvitation | null>(null);
 
@@ -18,7 +18,7 @@ const PendingInvitations = ({ team }: { team: Team }) => {
     useState(false);
 
   const { isLoading, isError, invitations, mutateInvitation } = useInvitations({
-    slug: team.slug,
+    slug: organization.slug,
     sentViaEmail: true,
   });
 
@@ -40,7 +40,7 @@ const PendingInvitations = ({ team }: { team: Team }) => {
     const sp = new URLSearchParams({ id: invitation.id });
 
     const response = await fetch(
-      `/api/teams/${team.slug}/invitations?${sp.toString()}`,
+      `/api/organizations/${organization.slug}/invitations?${sp.toString()}`,
       {
         method: 'DELETE',
         headers: defaultHeaders,

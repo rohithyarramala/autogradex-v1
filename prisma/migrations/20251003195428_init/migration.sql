@@ -70,7 +70,7 @@ CREATE TABLE "Organization" (
 -- CreateTable
 CREATE TABLE "OrganizationMember" (
     "id" TEXT NOT NULL,
-    "teamId" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "role" "Role" NOT NULL DEFAULT 'TEACHER',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -82,7 +82,7 @@ CREATE TABLE "OrganizationMember" (
 -- CreateTable
 CREATE TABLE "Invitation" (
     "id" TEXT NOT NULL,
-    "teamId" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
     "email" TEXT,
     "role" "Role" NOT NULL DEFAULT 'TEACHER',
     "token" TEXT NOT NULL,
@@ -112,7 +112,7 @@ CREATE TABLE "PasswordReset" (
 CREATE TABLE "ApiKey" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "teamId" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
     "hashedKey" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -316,7 +316,7 @@ CREATE INDEX "Organization_billingId_idx" ON "Organization"("billingId");
 CREATE INDEX "OrganizationMember_userId_idx" ON "OrganizationMember"("userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "OrganizationMember_teamId_userId_key" ON "OrganizationMember"("teamId", "userId");
+CREATE UNIQUE INDEX "OrganizationMember_organizationId_userId_key" ON "OrganizationMember"("organizationId", "userId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Invitation_token_key" ON "Invitation"("token");
@@ -325,7 +325,7 @@ CREATE UNIQUE INDEX "Invitation_token_key" ON "Invitation"("token");
 CREATE INDEX "Invitation_email_idx" ON "Invitation"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Invitation_teamId_email_key" ON "Invitation"("teamId", "email");
+CREATE UNIQUE INDEX "Invitation_organizationId_email_key" ON "Invitation"("organizationId", "email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "PasswordReset_token_key" ON "PasswordReset"("token");
@@ -334,7 +334,7 @@ CREATE UNIQUE INDEX "PasswordReset_token_key" ON "PasswordReset"("token");
 CREATE UNIQUE INDEX "ApiKey_hashedKey_key" ON "ApiKey"("hashedKey");
 
 -- CreateIndex
-CREATE INDEX "ApiKey_teamId_idx" ON "ApiKey"("teamId");
+CREATE INDEX "ApiKey_organizationId_idx" ON "ApiKey"("organizationId");
 
 -- CreateIndex
 CREATE INDEX "Subscription_customerId_idx" ON "Subscription"("customerId");
@@ -364,7 +364,7 @@ ALTER TABLE "Account" ADD CONSTRAINT "Account_userId_fkey" FOREIGN KEY ("userId"
 ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "OrganizationMember" ADD CONSTRAINT "OrganizationMember_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "OrganizationMember" ADD CONSTRAINT "OrganizationMember_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "OrganizationMember" ADD CONSTRAINT "OrganizationMember_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -373,10 +373,10 @@ ALTER TABLE "OrganizationMember" ADD CONSTRAINT "OrganizationMember_userId_fkey"
 ALTER TABLE "Invitation" ADD CONSTRAINT "Invitation_invitedBy_fkey" FOREIGN KEY ("invitedBy") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Invitation" ADD CONSTRAINT "Invitation_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Invitation" ADD CONSTRAINT "Invitation_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ApiKey" ADD CONSTRAINT "ApiKey_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "ApiKey" ADD CONSTRAINT "ApiKey_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Price" ADD CONSTRAINT "Price_serviceId_fkey" FOREIGN KEY ("serviceId") REFERENCES "Service"("id") ON DELETE CASCADE ON UPDATE CASCADE;

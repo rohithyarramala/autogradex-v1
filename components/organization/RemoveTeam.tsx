@@ -1,5 +1,5 @@
 import { Card } from '@/components/shared';
-import { Team } from '@prisma/client';
+import { Organization } from '@prisma/client';
 import { useTranslation } from 'next-i18next';
 import { useRouter } from 'next/router';
 import React, { useState } from 'react';
@@ -11,11 +11,11 @@ import { defaultHeaders } from '@/lib/common';
 import type { ApiResponse } from 'types';
 
 interface RemoveTeamProps {
-  team: Team;
+  organization: Organization;
   allowDelete: boolean;
 }
 
-const RemoveTeam = ({ team, allowDelete }: RemoveTeamProps) => {
+const RemoveTeam = ({ organization, allowDelete }: RemoveTeamProps) => {
   const router = useRouter();
   const { t } = useTranslation('common');
   const [loading, setLoading] = useState(false);
@@ -24,7 +24,7 @@ const RemoveTeam = ({ team, allowDelete }: RemoveTeamProps) => {
   const removeTeam = async () => {
     setLoading(true);
 
-    const response = await fetch(`/api/teams/${team.slug}`, {
+    const response = await fetch(`/api/organizations/${organization.slug}`, {
       method: 'DELETE',
       headers: defaultHeaders,
     });
@@ -37,8 +37,8 @@ const RemoveTeam = ({ team, allowDelete }: RemoveTeamProps) => {
       return;
     }
 
-    toast.success(t('team-removed-successfully'));
-    router.push('/teams');
+    toast.success(t('organization-removed-successfully'));
+    router.push('/organizations');
   };
 
   return (
@@ -46,11 +46,11 @@ const RemoveTeam = ({ team, allowDelete }: RemoveTeamProps) => {
       <Card>
         <Card.Body>
           <Card.Header>
-            <Card.Title>{t('remove-team')}</Card.Title>
+            <Card.Title>{t('remove-organization')}</Card.Title>
             <Card.Description>
               {allowDelete
-                ? t('remove-team-warning')
-                : t('remove-team-restricted')}
+                ? t('remove-organization-warning')
+                : t('remove-organization-restricted')}
             </Card.Description>
           </Card.Header>
         </Card.Body>
@@ -63,7 +63,7 @@ const RemoveTeam = ({ team, allowDelete }: RemoveTeamProps) => {
               variant="outline"
               size="md"
             >
-              {t('remove-team')}
+              {t('remove-organization')}
             </Button>
           </Card.Footer>
         )}
@@ -71,11 +71,11 @@ const RemoveTeam = ({ team, allowDelete }: RemoveTeamProps) => {
       {allowDelete && (
         <ConfirmationDialog
           visible={askConfirmation}
-          title={t('remove-team')}
+          title={t('remove-organization')}
           onCancel={() => setAskConfirmation(false)}
           onConfirm={removeTeam}
         >
-          {t('remove-team-confirmation')}
+          {t('remove-organization-confirmation')}
         </ConfirmationDialog>
       )}
     </>

@@ -121,7 +121,7 @@ const AiEvaluationPage = () => {
       setEditingEval(null);
     } catch (error) {
       console.error('Error saving evaluation:', error);
-      alert(`Failed to save evaluation: ${error.message}`);
+      alert(`Failed to save evaluation: ${error}`);
     }
   };
 

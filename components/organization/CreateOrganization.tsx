@@ -60,8 +60,8 @@ const CreateTeam = ({ visible, setVisible }: CreateTeamProps) => {
   return (
     <Modal open={visible} close={onClose}>
       <form onSubmit={formik.handleSubmit} method="POST">
-        <Modal.Header>{t('create-team')}</Modal.Header>
-        <Modal.Description>{t('members-of-a-team')}</Modal.Description>
+        <Modal.Header>{t('create-organization')}</Modal.Header>
+        <Modal.Description>{t('members-of-a-organization')}</Modal.Description>
         <Modal.Body>
           <InputWithLabel
             label={t('name')}

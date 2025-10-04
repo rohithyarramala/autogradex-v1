@@ -35,7 +35,7 @@ export const deleteApiKeySchema = z.object({
   apiKeyId,
 });
 
-export const teamSlugSchema = z.object({
+export const organizationSlugSchema = z.object({
   slug,
 });
 

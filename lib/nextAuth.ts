@@ -106,7 +106,7 @@ if (isAuthProviderEnabled('credentials')) {
           name: user.name,
           email: user.email,
           role: membership?.role || 'STUDENT', // default to STUDENT if no org
-          organizationId: membership?.teamId || null,
+          organizationId: membership?.organizationId || null,
         };
       },
     })
@@ -365,8 +365,8 @@ export const getAuthOptions = (
       async session({ session, token, user }) {
         if (session && (token || user)) {
           session.user.id = token?.sub || user?.id;
-          session.user.role = token?.role || user?.role || 'STUDENT';
-          session.user.organizationId = token?.organizationId || null;
+          // session.user.role = token?.role || user?.role || 'STUDENT';
+          // session.user.organizationId = token?.organizationId || null;
         }
 
         if (user?.name) {
@@ -399,7 +399,7 @@ export const getAuthOptions = (
             ...token,
             sub: userByAccount?.id,
             role: membership?.role || 'STUDENT',
-            organizationId: membership?.teamId || null,
+            organizationId: membership?.organizationId || null,
           };
         }
 
@@ -415,7 +415,7 @@ export const getAuthOptions = (
           });
 
           token.role = membership?.role || 'STUDENT';
-          token.organizationId = membership?.teamId || null;
+          token.organizationId = membership?.organizationId || null;
         }
 
         return token;
@@ -458,13 +458,13 @@ const linkAccount = async (user: User, account: Account) => {
 };
 
 const linkToTeam = async (profile: Profile, userId: string) => {
-  const team = await getOrganization({
+  const organization = await getOrganization({
     id: profile.requested.tenant,
   });
 
   // Sort out roles
   const roles = profile.roles || profile.groups || [];
-  let userRole: Role = team.defaultRole || Role.ADMIN;
+  let userRole: Role = organization.defaultRole || Role.ADMIN;
 
   for (let role of roles) {
     if (env.groupPrefix) {
@@ -486,5 +486,5 @@ const linkToTeam = async (profile: Profile, userId: string) => {
     }
   }
 
-  await addOrganizationMember(team.id, userId, userRole);
+  await addOrganizationMember(organization.id, userId, userRole);
 };

@@ -26,7 +26,6 @@ export function DataTable<T>({ data, columns }: DataTableProps<T>) {
     data,
     columns,
     state: { sorting, globalFilter },
-    onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),

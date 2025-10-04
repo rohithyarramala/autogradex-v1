@@ -1,4 +1,4 @@
-import { Invitation, Team } from '@prisma/client';
+import { Invitation, Organization } from '@prisma/client';
 import { sendEmail } from './sendEmail';
 import { TeamInviteEmail } from '@/components/emailTemplates';
 import { render } from '@react-email/components';
@@ -6,17 +6,17 @@ import env from '../env';
 import app from '../app';
 
 export const sendTeamInviteEmail = async (
-  team: Team,
+  organization: Organization,
   invitation: Invitation
 ) => {
   if (!invitation.email) {
     return;
   }
 
-  const subject = `You've been invited to join ${team.name} on ${app.name}`;
+  const subject = `You've been invited to join ${organization.name} on ${app.name}`;
   const invitationLink = `${env.appUrl}/invitations/${invitation.token}`;
 
-  const html = await render(TeamInviteEmail({ invitationLink, team, subject }));
+  const html = await render(TeamInviteEmail({ invitationLink, organization, subject }));
 
   await sendEmail({
     to: invitation.email,

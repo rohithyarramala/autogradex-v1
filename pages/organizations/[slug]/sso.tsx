@@ -9,10 +9,10 @@ import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import env from '@/lib/env';
 import { BOXYHQ_UI_CSS } from '@/components/styles';
 
-const TeamSSO = ({ teamFeatures, SPConfigURL }) => {
+const TeamSSO = ({ organizationFeatures, SPConfigURL }) => {
   const { t } = useTranslation('common');
 
-  const { isLoading, isError, team } = useTeam();
+  const { isLoading, isError, organization } = useTeam();
 
   if (isLoading) {
     return <Loading />;
@@ -22,20 +22,20 @@ const TeamSSO = ({ teamFeatures, SPConfigURL }) => {
     return <Error message={isError.message} />;
   }
 
-  if (!team) {
-    return <Error message={t('team-not-found')} />;
+  if (!organization) {
+    return <Error message={t('organization-not-found')} />;
   }
 
   return (
     <>
-      <TeamTab activeTab="sso" team={team} teamFeatures={teamFeatures} />
+      <TeamTab activeTab="sso" organization={organization} organizationFeatures={organizationFeatures} />
       <ConnectionsWrapper
         urls={{
           spMetadata: SPConfigURL,
-          get: `/api/teams/${team.slug}/sso`,
-          post: `/api/teams/${team.slug}/sso`,
-          patch: `/api/teams/${team.slug}/sso`,
-          delete: `/api/teams/${team.slug}/sso`,
+          get: `/api/organizations/${organization.slug}/sso`,
+          post: `/api/organizations/${organization.slug}/sso`,
+          patch: `/api/organizations/${organization.slug}/sso`,
+          delete: `/api/organizations/${organization.slug}/sso`,
         }}
         successCallback={({
           operation,
@@ -74,7 +74,7 @@ const TeamSSO = ({ teamFeatures, SPConfigURL }) => {
 export async function getServerSideProps({
   locale,
 }: GetServerSidePropsContext) {
-  if (!env.teamFeatures.sso) {
+  if (!env.organizationFeatures.sso) {
     return {
       notFound: true,
     };
@@ -87,7 +87,7 @@ export async function getServerSideProps({
   return {
     props: {
       ...(locale ? await serverSideTranslations(locale, ['common']) : {}),
-      teamFeatures: env.teamFeatures,
+      organizationFeatures: env.organizationFeatures,
       SPConfigURL,
     },
   };

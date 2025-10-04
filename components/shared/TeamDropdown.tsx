@@ -22,7 +22,7 @@ const TeamDropdown = () => {
   const role = data?.user?.role || 'STUDENT'; // default fallback
   // const role = "TEACHER";
   const currentTeam = (organizations || []).find(
-    (team) => team.slug === router.query.slug
+    (organization) => organization.slug === router.query.slug
   );
 
   /** =================== Menus Based on Role =================== */
@@ -46,10 +46,10 @@ const TeamDropdown = () => {
       baseMenus.push({
         id: 2,
         name: t('Organization'),
-        items: (organizations || []).map((team) => ({
-          id: team.id,
-          name: team.name,
-          href: `/organizations/${team.slug}/products`,
+        items: (organizations || []).map((organization) => ({
+          id: organization.id,
+          name: organization.name,
+          href: `/organizations/${organization.slug}/products`,
           icon: FolderIcon,
         })),
       });
@@ -57,10 +57,10 @@ const TeamDropdown = () => {
       baseMenus.push({
         id: 2,
         name: t('Menu'),
-        items: (organizations || []).map((team) => ({
-          id: team.id,
+        items: (organizations || []).map((organization) => ({
+          id: organization.id,
           name: `Acadamics`,
-          href: `/acadamics/${team.slug}/classes`,
+          href: `/acadamics/${organization.slug}/classes`,
           icon: RectangleStackIcon,
         })),
       });
@@ -69,10 +69,10 @@ const TeamDropdown = () => {
       baseMenus.push({
         id: 2,
         name: t('Menu'),
-        items: (organizations || []).map((team) => ({
-          id: team.id,
+        items: (organizations || []).map((organization) => ({
+          id: organization.id,
           name: `Acadamics`,
-          href: `/acadamics/${team.slug}/assignments`,
+          href: `/acadamics/${organization.slug}/assignments`,
           icon: FolderPlusIcon,
         })),
       });

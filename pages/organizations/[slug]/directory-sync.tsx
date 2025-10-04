@@ -9,8 +9,8 @@ import env from '@/lib/env';
 import { DirectoriesWrapper } from '@boxyhq/react-ui/dsync';
 import { BOXYHQ_UI_CSS } from '@/components/styles';
 
-const DirectorySync = ({ teamFeatures }) => {
-  const { isLoading, isError, team } = useTeam();
+const DirectorySync = ({ organizationFeatures }) => {
+  const { isLoading, isError, organization } = useTeam();
   const { t } = useTranslation('common');
 
   if (isLoading) {
@@ -21,16 +21,16 @@ const DirectorySync = ({ teamFeatures }) => {
     return <Error message={isError.message} />;
   }
 
-  if (!team) {
-    return <Error message={t('team-not-found')} />;
+  if (!organization) {
+    return <Error message={t('organization-not-found')} />;
   }
 
   return (
     <>
       <TeamTab
         activeTab="directory-sync"
-        team={team}
-        teamFeatures={teamFeatures}
+        organization={organization}
+        organizationFeatures={organizationFeatures}
       />
       <DirectoriesWrapper
         classNames={BOXYHQ_UI_CSS}
@@ -58,10 +58,10 @@ const DirectorySync = ({ teamFeatures }) => {
           },
         }}
         urls={{
-          get: `/api/teams/${team.slug}/dsync`,
-          post: `/api/teams/${team.slug}/dsync`,
-          patch: `/api/teams/${team.slug}/dsync`,
-          delete: `/api/teams/${team.slug}/dsync`,
+          get: `/api/organizations/${organization.slug}/dsync`,
+          post: `/api/organizations/${organization.slug}/dsync`,
+          patch: `/api/organizations/${organization.slug}/dsync`,
+          delete: `/api/organizations/${organization.slug}/dsync`,
         }}
         successCallback={({ operation }) => {
           if (operation === 'CREATE') {
@@ -83,7 +83,7 @@ const DirectorySync = ({ teamFeatures }) => {
 export async function getServerSideProps({
   locale,
 }: GetServerSidePropsContext) {
-  if (!env.teamFeatures.dsync) {
+  if (!env.organizationFeatures.dsync) {
     return {
       notFound: true,
     };
@@ -92,7 +92,7 @@ export async function getServerSideProps({
   return {
     props: {
       ...(locale ? await serverSideTranslations(locale, ['common']) : {}),
-      teamFeatures: env.teamFeatures,
+      organizationFeatures: env.organizationFeatures,
     },
   };
 }

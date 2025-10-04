@@ -13,12 +13,12 @@ interface ProductPricingProps {
 }
 
 const ProductPricing = ({ plans, subscriptions }: ProductPricingProps) => {
-  const { team } = useTeam();
+  const { organization } = useTeam();
   const { t } = useTranslation('common');
 
   const initiateCheckout = async (price: string, quantity?: number) => {
     const res = await fetch(
-      `/api/teams/${team?.slug}/payments/create-checkout-session`,
+      `/api/organizations/${organization?.slug}/payments/create-checkout-session`,
       {
         method: 'POST',
         headers: {

@@ -5,15 +5,15 @@ import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import { useTranslation } from 'next-i18next';
 
 import { Card } from '@/components/shared';
-import { Team } from '@prisma/client';
+import { Organization } from '@prisma/client';
 import { defaultHeaders } from '@/lib/common';
 import type { ApiResponse } from 'types';
 
 interface LinkToPortalProps {
-  team: Team;
+  organization: Organization;
 }
 
-const LinkToPortal = ({ team }: LinkToPortalProps) => {
+const LinkToPortal = ({ organization }: LinkToPortalProps) => {
   const [loading, setLoading] = useState(false);
   const { t } = useTranslation('common');
 
@@ -21,7 +21,7 @@ const LinkToPortal = ({ team }: LinkToPortalProps) => {
     setLoading(true);
 
     const response = await fetch(
-      `/api/teams/${team.slug}/payments/create-portal-link`,
+      `/api/organizations/${organization.slug}/payments/create-portal-link`,
       {
         method: 'POST',
         headers: defaultHeaders,

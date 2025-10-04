@@ -92,7 +92,7 @@ const env = {
 
   darkModeEnabled: process.env.NEXT_PUBLIC_DARK_MODE !== 'false',
 
-  teamFeatures: {
+  organizationFeatures: {
     sso: process.env.FEATURE_TEAM_SSO !== 'false',
     dsync: process.env.FEATURE_TEAM_DSYNC !== 'false',
     webhook: process.env.FEATURE_TEAM_WEBHOOK !== 'false',

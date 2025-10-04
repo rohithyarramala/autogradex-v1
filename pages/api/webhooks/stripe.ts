@@ -90,8 +90,8 @@ async function handleSubscriptionUpdated(event: Stripe.Event) {
 
   const subscription = await getBySubscriptionId(id);
   if (!subscription) {
-    const teamExists = await getByCustomerId(customer as string);
-    if (!teamExists) {
+    const organizationExists = await getByCustomerId(customer as string);
+    if (!organizationExists) {
       return;
     } else {
       await handleSubscriptionCreated(event);

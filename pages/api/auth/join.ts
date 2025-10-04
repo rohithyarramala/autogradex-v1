@@ -72,7 +72,7 @@ const handlePOST = async (req: NextApiRequest, res: NextApiResponse) => {
   if (!isEmailAllowed(email)) {
     throw new ApiError(
       400,
-      `We currently only accept work email addresses for sign-up. Please use your work email to create an account. If you don't have a work email, feel free to contact our support team for assistance.`
+      `We currently only accept work email addresses for sign-up. Please use your work email to create an account. If you don't have a work email, feel free to contact our support organization for assistance.`
     );
   }
 

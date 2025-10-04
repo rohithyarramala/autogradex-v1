@@ -9,9 +9,9 @@ import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import type { TeamFeature } from 'types';
 import { use } from 'react';
 
-const Settings = ({ teamFeatures }: { teamFeatures: TeamFeature }) => {
+const Settings = ({ organizationFeatures }: { organizationFeatures: TeamFeature }) => {
   const { t } = useTranslation('common');
-  const { isLoading, isError, team } = useOrganization();
+  const { isLoading, isError, organization } = useOrganization();
 
   if (isLoading) {
     return <Loading />;
@@ -21,17 +21,17 @@ const Settings = ({ teamFeatures }: { teamFeatures: TeamFeature }) => {
     return <Error message={isError.message} />;
   }
 
-  if (!team) {
-    return <Error message={t('team-not-found')} />;
+  if (!organization) {
+    return <Error message={t('organization-not-found')} />;
   }
 
   return (
     <>
-      <TeamTab activeTab="settings" team={team} teamFeatures={teamFeatures} />
+      <TeamTab activeTab="settings" organization={organization} organizationFeatures={organizationFeatures} />
       <div className="space-y-6">
-        <TeamSettings team={team} />
-        <AccessControl resource="team" actions={['delete']}>
-          <RemoveTeam team={team} allowDelete={teamFeatures.deleteTeam} />
+        <TeamSettings organization={organization} />
+        <AccessControl resource="organization" actions={['delete']}>
+          <RemoveTeam organization={organization} allowDelete={organizationFeatures.deleteTeam} />
         </AccessControl>
       </div>
     </>
@@ -44,7 +44,7 @@ export async function getServerSideProps({
   return {
     props: {
       ...(locale ? await serverSideTranslations(locale, ['common']) : {}),
-      teamFeatures: env.teamFeatures,
+      organizationFeatures: env.organizationFeatures,
     },
   };
 }

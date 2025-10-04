@@ -17,7 +17,7 @@ import { Table } from '@/components/shared/table/Table';
 const Organizations = () => {
   const router = useRouter();
   const { t } = useTranslation('common');
-  const [team, setTeam] = useState<Organization | null>(null);
+  const [organization, setTeam] = useState<Organization | null>(null);
   const { isLoading, isError, organizations, mutateOrganizations } = useOrganizations();
   const [askConfirmation, setAskConfirmation] = useState(false);
   const [createTeamVisible, setCreateTeamVisible] = useState(false);
@@ -30,8 +30,8 @@ const Organizations = () => {
     }
   }, [newTeam]);
 
-  const leaveTeam = async (team: Organization) => {
-    const response = await fetch(`/api/organization/${team.slug}/members`, {
+  const leaveTeam = async (organization: Organization) => {
+    const response = await fetch(`/api/organization/${organization.slug}/members`, {
       method: 'PUT',
       headers: defaultHeaders,
     });
@@ -43,7 +43,7 @@ const Organizations = () => {
       return;
     }
 
-    toast.success(t('leave-team-success'));
+    toast.success(t('leave-organization-success'));
     mutateOrganizations();
   };
 
@@ -72,33 +72,33 @@ const Organizations = () => {
           cols={[t('name'), t('members'), t('created-at'), t('actions')]}
           body={
             organizations
-              ? organizations.map((team) => {
+              ? organizations.map((organization) => {
                   return {
-                    id: team.id,
+                    id: organization.id,
                     cells: [
                       {
                         wrap: true,
                         element: (
-                          <Link href={`/organizations/${team.slug}/members`}>
+                          <Link href={`/organizations/${organization.slug}/members`}>
                             <div className="flex items-center justify-start space-x-2">
-                              <LetterAvatar name={team.name} />
-                              <span className="underline">{team.name}</span>
+                              <LetterAvatar name={organization.name} />
+                              <span className="underline">{organization.name}</span>
                             </div>
                           </Link>
                         ),
                       },
-                      { wrap: true, text: '' + team._count.members },
+                      { wrap: true, text: '' + organization._count.members },
                       {
                         wrap: true,
-                        text: new Date(team.createdAt).toDateString(),
+                        text: new Date(organization.createdAt).toDateString(),
                       },
                       {
                         buttons: [
                           {
                             color: 'error',
-                            text: t('leave-team'),
+                            text: t('leave-organization'),
                             onClick: () => {
-                              setTeam(team);
+                              setTeam(organization);
                               setAskConfirmation(true);
                             },
                           },
@@ -113,11 +113,11 @@ const Organizations = () => {
 
         <ConfirmationDialog
           visible={askConfirmation}
-          title={`${t('leave-organization')} ${team?.name}`}
+          title={`${t('leave-organization')} ${organization?.name}`}
           onCancel={() => setAskConfirmation(false)}
           onConfirm={() => {
-            if (team) {
-              leaveTeam(team);
+            if (organization) {
+              leaveTeam(organization);
             }
           }}
           confirmText={t('leave-organization')}

@@ -1,7 +1,7 @@
 import { ApiError } from '@/lib/errors';
 import { sendAudit } from '@/lib/retraced';
 import { findOrCreateApp, findWebhook, updateWebhook } from '@/lib/svix';
-import { throwIfNoTeamAccess } from 'models/organization';
+import { throwIfNoOrganizationAccess } from 'models/organization';
 import { throwIfNotAllowed } from 'models/user';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { EndpointIn } from 'svix';
@@ -20,7 +20,7 @@ export default async function handler(
   const { method } = req;
 
   try {
-    if (!env.teamFeatures.webhook) {
+    if (!env.organizationFeatures.webhook) {
       throw new ApiError(404, 'Not Found');
     }
 
@@ -47,8 +47,8 @@ export default async function handler(
 
 // Get a Webhook
 const handleGET = async (req: NextApiRequest, res: NextApiResponse) => {
-  const teamMember = await throwIfNoTeamAccess(req, res);
-  throwIfNotAllowed(teamMember, 'team_webhook', 'read');
+  const organizationMember = await throwIfNoOrganizationAccess(req, res);
+  throwIfNotAllowed(organizationMember, 'organization_webhook', 'read');
 
   const { endpointId } = validateWithSchema(
     getWebhookSchema,
@@ -57,7 +57,7 @@ const handleGET = async (req: NextApiRequest, res: NextApiResponse) => {
     }
   );
 
-  const app = await findOrCreateApp(teamMember.team.name, teamMember.team.id);
+  const app = await findOrCreateApp(organizationMember.organization.name, organizationMember.organization.id);
 
   if (!app) {
     throw new ApiError(200, 'Bad request.');
@@ -72,8 +72,8 @@ const handleGET = async (req: NextApiRequest, res: NextApiResponse) => {
 
 // Update a Webhook
 const handlePUT = async (req: NextApiRequest, res: NextApiResponse) => {
-  const teamMember = await throwIfNoTeamAccess(req, res);
-  throwIfNotAllowed(teamMember, 'team_webhook', 'update');
+  const organizationMember = await throwIfNoOrganizationAccess(req, res);
+  throwIfNotAllowed(organizationMember, 'organization_webhook', 'update');
 
   const { name, url, eventTypes, endpointId } = validateWithSchema(
     updateWebhookEndpointSchema,
@@ -83,7 +83,7 @@ const handlePUT = async (req: NextApiRequest, res: NextApiResponse) => {
     }
   );
 
-  const app = await findOrCreateApp(teamMember.team.name, teamMember.team.id);
+  const app = await findOrCreateApp(organizationMember.organization.name, organizationMember.organization.id);
 
   if (!app) {
     throw new ApiError(200, 'Bad request.');
@@ -106,8 +106,8 @@ const handlePUT = async (req: NextApiRequest, res: NextApiResponse) => {
   sendAudit({
     action: 'webhook.update',
     crud: 'u',
-    user: teamMember.user,
-    team: teamMember.team,
+    user: organizationMember.user,
+    organization: organizationMember.organization,
   });
 
   recordMetric('webhook.updated');

@@ -5,10 +5,10 @@ import { useTranslation } from 'next-i18next';
 import APIKeys from './APIKeys';
 import { TeamFeature } from 'types';
 
-const APIKeysContainer = ({ teamFeatures }: { teamFeatures: TeamFeature }) => {
+const APIKeysContainer = ({ organizationFeatures }: { organizationFeatures: TeamFeature }) => {
   const { t } = useTranslation('common');
 
-  const { isLoading, isError, team } = useTeam();
+  const { isLoading, isError, organization } = useTeam();
 
   if (isLoading) {
     return <Loading />;
@@ -18,14 +18,14 @@ const APIKeysContainer = ({ teamFeatures }: { teamFeatures: TeamFeature }) => {
     return <Error message={isError.message} />;
   }
 
-  if (!team) {
-    return <Error message={t('team-not-found')} />;
+  if (!organization) {
+    return <Error message={t('organization-not-found')} />;
   }
 
   return (
     <>
-      <TeamTab activeTab="api-keys" team={team} teamFeatures={teamFeatures} />
-      <APIKeys team={team} />
+      <TeamTab activeTab="api-keys" organization={organization} organizationFeatures={organizationFeatures} />
+      <APIKeys organization={organization} />
     </>
   );
 };

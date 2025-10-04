@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 
 import { getSession } from '@/lib/session';
-import { throwIfNoTeamAccess } from 'models/organization';
+import { throwIfNoOrganizationAccess } from 'models/organization';
 import { stripe, getStripeCustomerId } from '@/lib/stripe';
 import env from '@/lib/env';
 import { checkoutSessionSchema, validateWithSchema } from '@/lib/zod';
@@ -35,9 +35,9 @@ const handlePOST = async (req: NextApiRequest, res: NextApiResponse) => {
     req.body
   );
 
-  const teamMember = await throwIfNoTeamAccess(req, res);
+  const organizationMember = await throwIfNoOrganizationAccess(req, res);
   const session = await getSession(req, res);
-  const customer = await getStripeCustomerId(teamMember, session);
+  const customer = await getStripeCustomerId(organizationMember, session);
 
   const checkoutSession = await stripe.checkout.sessions.create({
     customer,
@@ -53,8 +53,8 @@ const handlePOST = async (req: NextApiRequest, res: NextApiResponse) => {
     // the actual Session ID is returned in the query parameter when your customer
     // is redirected to the success page.
 
-    success_url: `${env.appUrl}/teams/${teamMember.team.slug}/billing`,
-    cancel_url: `${env.appUrl}/teams/${teamMember.team.slug}/billing`,
+    success_url: `${env.appUrl}/organizations/${organizationMember.organization.slug}/billing`,
+    cancel_url: `${env.appUrl}/organizations/${organizationMember.organization.slug}/billing`,
   });
 
   res.json({ data: checkoutSession });

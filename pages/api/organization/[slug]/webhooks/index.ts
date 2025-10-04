@@ -7,7 +7,7 @@ import {
   createEventType,
   listWebhooks,
 } from '@/lib/svix';
-import { throwIfNoTeamAccess } from 'models/organization';
+import { throwIfNoOrganizationAccess } from 'models/organization';
 import { throwIfNotAllowed } from 'models/user';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { EndpointIn } from 'svix';
@@ -26,7 +26,7 @@ export default async function handler(
   const { method } = req;
 
   try {
-    if (!env.teamFeatures.webhook) {
+    if (!env.organizationFeatures.webhook) {
       throw new ApiError(404, 'Not Found');
     }
 
@@ -56,14 +56,14 @@ export default async function handler(
 
 // Create a Webhook endpoint
 const handlePOST = async (req: NextApiRequest, res: NextApiResponse) => {
-  const teamMember = await throwIfNoTeamAccess(req, res);
-  throwIfNotAllowed(teamMember, 'team_webhook', 'create');
+  const organizationMember = await throwIfNoOrganizationAccess(req, res);
+  throwIfNotAllowed(organizationMember, 'organization_webhook', 'create');
 
   const { name, url, eventTypes } = validateWithSchema(
     webhookEndpointSchema,
     req.body
   );
-  const app = await findOrCreateApp(teamMember.team.name, teamMember.team.id);
+  const app = await findOrCreateApp(organizationMember.organization.name, organizationMember.organization.id);
 
   // TODO: The endpoint URL must be HTTPS.
 
@@ -90,8 +90,8 @@ const handlePOST = async (req: NextApiRequest, res: NextApiResponse) => {
   sendAudit({
     action: 'webhook.create',
     crud: 'c',
-    user: teamMember.user,
-    team: teamMember.team,
+    user: organizationMember.user,
+    organization: organizationMember.organization,
   });
 
   recordMetric('webhook.created');
@@ -99,12 +99,12 @@ const handlePOST = async (req: NextApiRequest, res: NextApiResponse) => {
   res.status(200).json({ data: endpoint });
 };
 
-// Get all webhooks created by a team
+// Get all webhooks created by a organization
 const handleGET = async (req: NextApiRequest, res: NextApiResponse) => {
-  const teamMember = await throwIfNoTeamAccess(req, res);
-  throwIfNotAllowed(teamMember, 'team_webhook', 'read');
+  const organizationMember = await throwIfNoOrganizationAccess(req, res);
+  throwIfNotAllowed(organizationMember, 'organization_webhook', 'read');
 
-  const app = await findOrCreateApp(teamMember.team.name, teamMember.team.id);
+  const app = await findOrCreateApp(organizationMember.organization.name, organizationMember.organization.id);
 
   if (!app) {
     throw new ApiError(400, 'Bad request. Please add a Svix API key.');
@@ -119,21 +119,21 @@ const handleGET = async (req: NextApiRequest, res: NextApiResponse) => {
 
 // Delete a webhook
 const handleDELETE = async (req: NextApiRequest, res: NextApiResponse) => {
-  const teamMember = await throwIfNoTeamAccess(req, res);
-  throwIfNotAllowed(teamMember, 'team_webhook', 'delete');
+  const organizationMember = await throwIfNoOrganizationAccess(req, res);
+  throwIfNotAllowed(organizationMember, 'organization_webhook', 'delete');
 
   const { webhookId } = validateWithSchema(
     deleteWebhookSchema,
     req.query as { webhookId: string }
   );
 
-  const app = await findOrCreateApp(teamMember.team.name, teamMember.team.id);
+  const app = await findOrCreateApp(organizationMember.organization.name, organizationMember.organization.id);
 
   if (!app) {
     throw new ApiError(400, 'Bad request.');
   }
 
-  if (app.uid != teamMember.team.id) {
+  if (app.uid != organizationMember.organization.id) {
     throw new ApiError(400, 'Bad request.');
   }
 
@@ -142,8 +142,8 @@ const handleDELETE = async (req: NextApiRequest, res: NextApiResponse) => {
   sendAudit({
     action: 'webhook.delete',
     crud: 'd',
-    user: teamMember.user,
-    team: teamMember.team,
+    user: organizationMember.user,
+    organization: organizationMember.organization,
   });
 
   recordMetric('webhook.removed');

@@ -34,17 +34,17 @@ export default async function handler(
   }
 }
 
-// Get teams
+// Get organizations
 const handleGET = async (req: NextApiRequest, res: NextApiResponse) => {
   const user = await getCurrentUser(req, res);
-  const teams = await getOrganizations(user.id);
+  const organizations = await getOrganizations(user.id);
 
-  recordMetric('team.fetched');
+  recordMetric('organization.fetched');
 
-  res.status(200).json({ data: teams });
+  res.status(200).json({ data: organizations });
 };
 
-// Create a team
+// Create a organization
 const handlePOST = async (req: NextApiRequest, res: NextApiResponse) => {
   const { name } = validateWithSchema(createTeamSchema, req.body);
 
@@ -52,16 +52,16 @@ const handlePOST = async (req: NextApiRequest, res: NextApiResponse) => {
   const slug = slugify(name);
 
   if (await isOrganizationExists(slug)) {
-    throw new ApiError(400, 'A team with the slug already exists.');
+    throw new ApiError(400, 'A organization with the slug already exists.');
   }
 
-  const team = await createOrganization({
+  const organization = await createOrganization({
     userId: user.id,
     name,
     slug,
   });
 
-  recordMetric('team.created');
+  recordMetric('organization.created');
 
-  res.status(200).json({ data: team });
+  res.status(200).json({ data: organization });
 };

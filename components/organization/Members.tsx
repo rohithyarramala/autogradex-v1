@@ -69,18 +69,18 @@ const Members = ({ organization }: { organization: Organization }) => {
 
   const canUpdateRole = (member: OrganizationMember) => {
     return (
-      session?.user.id != member.userId && canAccess('team_member', ['update'])
+      session?.user.id != member.userId && canAccess('organization_member', ['update'])
     );
   };
 
   const canRemoveMember = (member: OrganizationMember) => {
     return (
-      session?.user.id != member.userId && canAccess('team_member', ['delete'])
+      session?.user.id != member.userId && canAccess('organization_member', ['delete'])
     );
   };
 
   const cols = [t('name'), t('email'), t('role')];
-  if (canAccess('team_member', ['delete'])) {
+  if (canAccess('organization_member', ['delete'])) {
     cols.push(t('actions'));
   }
 
@@ -119,7 +119,7 @@ const Members = ({ organization }: { organization: Organization }) => {
               { wrap: true, text: member.user.email, minWidth: 250 },
               {
                 element: canUpdateRole(member) ? (
-                  <UpdateMemberRole team={organization} member={member} />
+                  <UpdateMemberRole organization={organization} member={member} />
                 ) : (
                   <span>{member.role}</span>
                 ),
@@ -154,7 +154,7 @@ const Members = ({ organization }: { organization: Organization }) => {
           email: selectedMember?.user.email,
         })}
       </ConfirmationDialog>
-      <InviteMember visible={visible} setVisible={setVisible} team={organization} />
+      <InviteMember visible={visible} setVisible={setVisible} organization={organization} />
     </div>
   );
 };

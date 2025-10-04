@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import TeamNavigation from './TeamNavigation';
 import UserNavigation from './UserNavigation';
+import { Role } from '@prisma/client';
 import { useSession } from 'next-auth/react';
 
 const Navigation = () => {

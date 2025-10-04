@@ -1,10 +1,12 @@
 import env from '@/lib/env';
 import { ssoManager } from '@/lib/jackson/sso';
 import { ssoVerifySchema, validateWithSchema } from '@/lib/zod';
-import { Team } from '@prisma/client';
-import { getTeam, getTeams } from 'models/organization';
+import { Organization } from '@prisma/client';
+import { Or } from '@prisma/client/runtime/library';
+import { getOrganization, getOrganizations } from 'models/organization';
 import { getUser } from 'models/user';
 import { NextApiRequest, NextApiResponse } from 'next';
+import { get } from 'node:http';
 
 const sso = ssoManager();
 
@@ -42,31 +44,31 @@ const handlePOST = async (req: NextApiRequest, res: NextApiResponse) => {
     return res.status(400).json({ error: 'Invalid request.' });
   }
 
-  // If slug is provided, verify SSO connections for the team
+  // If slug is provided, verify SSO connections for the organization
   if (slug) {
-    const team = await getTeam({ slug });
+    const organization = await getOrganization({ slug });
 
-    if (!team) {
+    if (!organization) {
       throw new Error('Team not found.');
     }
 
-    const data = await handleTeamSSOVerification(team.id);
+    const data = await handleTeamSSOVerification(organization.id);
     return res.json({ data });
   }
 
   // If email is provided, verify SSO connections for the user
   if (email) {
-    const teams = await getTeamsFromEmail(email);
+    const organizations = await getTeamsFromEmail(email);
 
-    if (teams.length === 1) {
-      const data = await handleTeamSSOVerification(teams[0].id);
+    if (organizations.length === 1) {
+      const data = await handleTeamSSOVerification(organizations[0].id);
       return res.json({ data });
     }
 
-    const { teamId, useSlug } = await processTeamsForSSOVerification(teams);
+    const { organizationId, useSlug } = await processTeamsForSSOVerification(organizations);
 
-    // Multiple teams with SSO connections found
-    // Ask user to provide team slug
+    // Multiple organizations with SSO connections found
+    // Ask user to provide organization slug
     if (useSlug) {
       return res.json({
         data: {
@@ -75,14 +77,14 @@ const handlePOST = async (req: NextApiRequest, res: NextApiResponse) => {
       });
     }
 
-    // No teams with SSO connections found
-    if (!teamId) {
-      throw new Error('No SSO connections found for any team.');
+    // No organizations with SSO connections found
+    if (!organizationId) {
+      throw new Error('No SSO connections found for any organization.');
     } else {
-      // Only one team with SSO connections found
+      // Only one organization with SSO connections found
       return res.json({
         data: {
-          teamId,
+          organizationId,
         },
       });
     }
@@ -90,39 +92,39 @@ const handlePOST = async (req: NextApiRequest, res: NextApiResponse) => {
 };
 
 /**
- * Handle SSO verification for given team id
+ * Handle SSO verification for given organization id
  */
-async function handleTeamSSOVerification(teamId: string) {
-  const exists = await teamSSOExists(teamId);
+async function handleTeamSSOVerification(organizationId: string) {
+  const exists = await organizationSSOExists(organizationId);
 
   if (!exists) {
-    throw new Error('No SSO connections found for this team.');
+    throw new Error('No SSO connections found for this organization.');
   }
 
-  return { teamId };
+  return { organizationId };
 }
 
 /**
- * Get list of teams for a user from email
+ * Get list of organizations for a user from email
  */
-async function getTeamsFromEmail(email: string): Promise<Team[]> {
+async function getTeamsFromEmail(email: string): Promise<Organization[]> {
   const user = await getUser({ email });
   if (!user) {
     throw new Error('User not found.');
   }
-  const teams = await getTeams(user.id);
-  if (!teams.length) {
-    throw new Error('User does not belong to any team.');
+  const organizations = await getOrganizations(user.id);
+  if (!organizations.length) {
+    throw new Error('User does not belong to any organization.');
   }
-  return teams;
+  return organizations;
 }
 
 /**
- * Check if SSO connections exist for a team
+ * Check if SSO connections exist for a organization
  */
-async function teamSSOExists(teamId: string): Promise<boolean> {
+async function organizationSSOExists(organizationId: string): Promise<boolean> {
   const connections = await sso.getConnections({
-    tenant: teamId,
+    tenant: organizationId,
     product: env.jackson.productId,
   });
 
@@ -134,34 +136,34 @@ async function teamSSOExists(teamId: string): Promise<boolean> {
 }
 
 /**
- * Process teams to find the team with SSO connections
- * If multiple teams with SSO connections are found, return useSlug as true
- * If no teams with SSO connections are found, return teamId as empty string
- * If only one team with SSO connections is found, return teamId
+ * Process organizations to find the organization with SSO connections
+ * If multiple organizations with SSO connections are found, return useSlug as true
+ * If no organizations with SSO connections are found, return organizationId as empty string
+ * If only one organization with SSO connections is found, return organizationId
  */
-async function processTeamsForSSOVerification(teams: Team[]): Promise<{
-  teamId: string;
+async function processTeamsForSSOVerification(organizations: Organization[]): Promise<{
+  organizationId: string;
   useSlug: boolean;
 }> {
-  let teamId = '';
-  for (const team of teams) {
-    const exists = await teamSSOExists(team.id);
+  let organizationId = '';
+  for (const organization of organizations) {
+    const exists = await organizationSSOExists(organization.id);
 
     if (exists) {
-      if (teamId) {
-        // Multiple teams with SSO connections found
+      if (organizationId) {
+        // Multiple organizations with SSO connections found
         return {
-          teamId: '',
+          organizationId: '',
           useSlug: true,
         };
       } else {
-        // First team with SSO connections found
-        teamId = team.id;
+        // First organization with SSO connections found
+        organizationId = organization.id;
       }
     }
   }
   return {
-    teamId,
+    organizationId,
     useSlug: false,
   };
 }

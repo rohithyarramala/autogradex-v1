@@ -3,7 +3,7 @@ import { expect } from '@playwright/test';
 
 export class MemberPage {
   private readonly page: Page;
-  private readonly teamSlug: string;
+  private readonly organizationSlug: string;
   private readonly membersHeading: Locator;
   private readonly inviteMemberButton: Locator;
   private readonly inviteEmailField: Locator;
@@ -14,9 +14,9 @@ export class MemberPage {
   private readonly removeMemberButton: Locator;
   private readonly deleteButtonForMember: Locator;
 
-  constructor(page: Page, teamSlug: string) {
+  constructor(page: Page, organizationSlug: string) {
     this.page = page;
-    this.teamSlug = teamSlug;
+    this.organizationSlug = organizationSlug;
     this.membersHeading = this.page.getByRole('heading', {
       name: 'Members',
     });
@@ -35,7 +35,7 @@ export class MemberPage {
       name: 'Create Link',
     });
     this.inviteByLinkSuccessText = this.page.getByText(
-      'Share your team invite link'
+      'Share your organization invite link'
     );
     this.removeMemberButton = this.page
       .getByRole('cell', { name: 'Remove' })
@@ -46,8 +46,8 @@ export class MemberPage {
   }
 
   async goto() {
-    await this.page.goto(`/teams/${this.teamSlug}/members`);
-    await this.page.waitForURL(`/teams/${this.teamSlug}/members`);
+    await this.page.goto(`/organizations/${this.organizationSlug}/members`);
+    await this.page.waitForURL(`/organizations/${this.organizationSlug}/members`);
     await this.membersPageVisible();
   }
 
@@ -55,7 +55,7 @@ export class MemberPage {
     await expect(this.membersHeading).toBeVisible();
   }
 
-  async teamMemberExists(
+  async organizationMemberExists(
     name: string,
     email: string,
     role: 'OWNER' | 'MEMBER'

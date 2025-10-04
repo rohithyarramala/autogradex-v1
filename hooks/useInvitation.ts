@@ -2,9 +2,9 @@ import useSWR from 'swr';
 import fetcher from '@/lib/fetcher';
 import { useRouter } from 'next/router';
 import type { ApiResponse } from 'types';
-import { Invitation, Team } from '@prisma/client';
+import { Invitation, Organization } from '@prisma/client';
 
-type Response = ApiResponse<Invitation & { team: Team }>;
+type Response = ApiResponse<Invitation & { organization: Organization }>;
 
 const useInvitation = (token?: string) => {
   const { query, isReady } = useRouter();
