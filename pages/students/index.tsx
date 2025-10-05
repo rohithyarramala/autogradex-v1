@@ -20,22 +20,24 @@ interface Student {
 const StudentsPage = () => {
   const { data: session } = useSession();
   const [students, setStudents] = useState<Student[]>([]);
+  const fetchStudents = async () => {
+    const res = await fetch('/api/students');
+    const data = await res.json();
+    setStudents(
+      (Array.isArray(data) ? data : []).map((student: any) => ({
+        id: student.id,
+        name: student.name,
+        email: student.email,
+        rollNo: student.rollNo || '',
+        classId: student.studentEnrollments?.[0]?.classId || undefined,
+        sectionId: student.studentEnrollments?.[0]?.sectionId || undefined,
+        className: student.studentEnrollments?.[0]?.class?.name || '',
+        section: student.studentEnrollments?.[0]?.section?.name || '',
+      }))
+    );
+  };
+
   useEffect(() => {
-    const fetchStudents = async () => {
-      const res = await fetch("/api/students");
-      const data = await res.json();
-      setStudents(
-        data.map((student: any) => ({
-          id: student.id,
-          name: student.name,
-          rollNo: student.rollNo || "",
-          className:
-            student.studentEnrollments?.[0]?.section?.class?.name || "",
-          section:
-            student.studentEnrollments?.[0]?.section?.name || "",
-        }))
-      );
-    };
     fetchStudents();
   }, []);
 
@@ -56,26 +58,24 @@ const StudentsPage = () => {
 
   const handleDelete = async (id: number) => {
     await fetch(`/api/students/${id}`, { method: "DELETE" });
-    setStudents((prev) => prev.filter((s) => s.id !== id));
+    await fetchStudents();
   };
 
   const handleSave = async (student: Student) => {
     if (student.id) {
-      const res = await fetch(`/api/students/${student.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(student),
+      await fetch(`/api/students/${student.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: student.name, email: student.email, rollNo: student.rollNo, sectionId: student.sectionId, classId: student.classId }),
       });
-      const updated = await res.json();
-      setStudents((prev) => prev.map((s) => (s.id === student.id ? { ...s, ...updated } : s)));
+      await fetchStudents();
     } else {
-      const res = await fetch("/api/students", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(student),
+      await fetch('/api/students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: student.name, email: student.email, password: student.password, rollNo: student.rollNo, sectionId: student.sectionId, classId: student.classId }),
       });
-      const created = await res.json();
-      setStudents((prev) => [...prev, { ...student, id: created.id }]);
+      await fetchStudents();
     }
     setOpenModal(false);
     setEditingStudent(null);

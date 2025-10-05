@@ -20,7 +20,15 @@ const SectionsPage = () => {
     setLoading(true);
     fetch("/api/sections")
       .then((res) => res.json())
-      .then((data) => setSections(data))
+      .then((data) => {
+        // Ensure we only set an array into state
+        if (Array.isArray(data)) {
+          setSections(data);
+        } else {
+          console.warn('Unexpected sections payload, expected array:', data);
+          setSections([]);
+        }
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -28,7 +36,10 @@ const SectionsPage = () => {
   const handleDelete = async (id?: string) => {
     if (!id) return;
     await fetch(`/api/sections/${id}`, { method: "DELETE" });
-    setSections((prev) => prev.filter((s) => s.id !== id));
+    setSections((prev) => {
+      const list = Array.isArray(prev) ? prev : [];
+      return list.filter((s) => s.id !== id);
+    });
   };
 
   // Save section (create or update)
@@ -41,9 +52,10 @@ const SectionsPage = () => {
         body: JSON.stringify({ name: section.name }),
       });
       const updated = await res.json();
-      setSections((prev) =>
-        prev.map((s) => (s.id === section.id ? updated : s))
-      );
+        setSections((prev) => {
+          const list = Array.isArray(prev) ? prev : [];
+          return list.map((s) => (s.id === section.id ? updated : s));
+        });
     } else {
       // Create
       const res = await fetch("/api/sections", {
@@ -52,7 +64,10 @@ const SectionsPage = () => {
         body: JSON.stringify({ name: section.name }),
       });
       const created = await res.json();
-      setSections((prev) => [...prev, created]);
+        setSections((prev) => {
+          const list = Array.isArray(prev) ? prev : [];
+          return [...list, created];
+        });
     }
     setOpenModal(false);
     setEditingSection(null);

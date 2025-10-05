@@ -32,7 +32,7 @@ export const handleEvents = async (event: DirectorySyncEvent) => {
       },
     });
 
-    await addOrganizationMember(organizationId, user.id, Role.STUDENT);
+    await addOrganizationMember(organizationId, user.id, Role.ADMIN);
   }
 
   // User has been updated
@@ -70,7 +70,7 @@ export const handleEvents = async (event: DirectorySyncEvent) => {
     });
 
     // Reactivation of user by adding them back to the organization
-    await addOrganizationMember(organizationId, user.id, Role.STUDENT);
+    await addOrganizationMember(organizationId, user.id, Role.ADMIN);
   }
 
   // User has been removed

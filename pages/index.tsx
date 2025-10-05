@@ -9,10 +9,13 @@ import env from '@/lib/env';
 import Head from 'next/head';
 import Image from 'next/image';
 import AutogradexImage from '../public/logo.png';
-
+import { useSession } from 'next-auth/react';
 const Home: NextPageWithLayout = () => {
   const { toggleTheme, selectedTheme } = useTheme();
   const { t } = useTranslation('common');
+  const { data: session } = useSession();
+
+  const isAuthenticated = session?.user !== undefined;
 
   return (
     <>
@@ -46,22 +49,33 @@ const Home: NextPageWithLayout = () => {
                   </button>
                 </li>
               )}
-              <li>
+              {isAuthenticated && (<li>
                 <Link
-                  href="/auth/login"
+                  href="/dashboard"
                   className="btn btn-primary btn-md py-3 px-2 sm:px-4 text-white"
                 >
-                  {t('sign-in', 'Sign In')}
+                  {t('dashboard', 'Dashboard')}
                 </Link>
               </li>
-              <li>
-                <Link
-                  href="/book-demo"
-                  className="btn btn-primary dark:border-zinc-600 dark:border-2 dark:text-zinc-200 btn-outline py-3 px-2 sm:px-4 btn-md"
-                >
-                  {t('book-demo', 'Book a Demo')}
-                </Link>
-              </li>
+              )}
+              {!isAuthenticated && (
+              <><li>
+                  <Link
+                    href="/auth/login"
+                    className="btn btn-primary btn-md py-3 px-2 sm:px-4 text-white"
+                  >
+                    {t('sign-in', 'Sign In')}
+                  </Link>
+                </li><li>
+                    <Link
+                      href="/book-demo"
+                      className="btn btn-primary dark:border-zinc-600 dark:border-2 dark:text-zinc-200 btn-outline py-3 px-2 sm:px-4 btn-md"
+                    >
+                      {t('book-demo', 'Book a Demo')}
+                    </Link>
+
+                  </li></>
+              )}
             </ul>
           </div>
         </div>

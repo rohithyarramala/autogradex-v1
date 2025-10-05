@@ -7,28 +7,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  SUPER_ADMIN
-  ADMIN
-  TEACHER
-  STUDENT
-}
-
 model Account {
   id                String  @id @default(uuid())
   userId            String
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@index([userId])
@@ -53,78 +45,77 @@ model VerificationToken {
 }
 
 model User {
-  id                     String    @id @default(uuid())
+  id                     String                 @id @default(uuid())
   name                   String
-  email                  String    @unique
+  email                  String                 @unique
+  // optional roll number for students
+  rollNo                 String?
   emailVerified          DateTime?
   password               String?
   image                  String?
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @default(now())
-  invalid_login_attempts Int       @default(0)
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @default(now())
+  invalid_login_attempts Int                    @default(0)
   lockedAt               DateTime?
-
-  organizationMember OrganizationMember[]
-  accounts    Account[]
-  sessions    Session[]
-  invitations Invitation[]
-
-  studentEnrollments   StudentEnrollment[]
-  teachingSubjects    Subject[]
-
-  EvaluationSubmissions EvaluationSubmission[]
-  Evaluation Evaluation[]
+  accounts               Account[]
+  Evaluation             Evaluation[]
+  EvaluationSubmissions  EvaluationSubmission[]
+  invitations            Invitation[]
+  organizationMember     OrganizationMember[]
+  sessions               Session[]
+  studentEnrollments     StudentEnrollment[]
+  teachingSubjects       Subject[]
 }
 
 model Organization {
-  id              String       @id @default(uuid())
+  id              String               @id @default(uuid())
   name            String
-  slug            String       @unique
-  domain          String?      @unique
-  defaultRole     Role         @default(ADMIN)
+  slug            String               @unique
+  domain          String?              @unique
+  defaultRole     Role                 @default(ADMIN)
   billingId       String?
   billingProvider String?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @default(now())
-  members         OrganizationMember[]
-  invitations     Invitation[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @default(now())
   apiKeys         ApiKey[]
+  classes         Class[]
+  invitations     Invitation[]
+  members         OrganizationMember[]
 
-  classes   Class[]
+  sections Section[]
+  subjects Subject[]
 
   @@index([billingId])
 }
 
 model OrganizationMember {
-  id        String   @id @default(uuid())
-  organizationId    String
-  userId    String
-  role      Role     @default(TEACHER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
-
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String       @id @default(uuid())
+  organizationId String
+  userId         String
+  role           Role         @default(TEACHER)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, userId])
   @@index([userId])
 }
 
 model Invitation {
-  id             String   @id @default(uuid())
-  organizationId         String
+  id             String       @id @default(uuid())
+  organizationId String
   email          String?
-  role           Role     @default(TEACHER)
-  token          String   @unique
+  role           Role         @default(TEACHER)
+  token          String       @unique
   expires        DateTime
   invitedBy      String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @default(now())
-  sentViaEmail   Boolean  @default(true)
-  allowedDomains String[] @default([])
-
-  user User @relation(fields: [invitedBy], references: [id], onDelete: Cascade)
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @default(now())
+  sentViaEmail   Boolean      @default(true)
+  allowedDomains String[]     @default([])
+  user           User         @relation(fields: [invitedBy], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, email])
   @@index([email])
@@ -140,16 +131,15 @@ model PasswordReset {
 }
 
 model ApiKey {
-  id         String    @id @default(uuid())
-  name       String
-  organizationId     String
-  hashedKey  String    @unique
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @default(now())
-  expiresAt  DateTime?
-  lastUsedAt DateTime?
-
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id             String       @id @default(uuid())
+  name           String
+  organizationId String
+  hashedKey      String       @unique
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @default(now())
+  expiresAt      DateTime?
+  lastUsedAt     DateTime?
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
 }
@@ -189,85 +179,79 @@ model Price {
   metadata      Json
   type          String
   created       DateTime
-
-  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  service       Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 }
 
-// education struture
 model Class {
-  id             String    @id @default(uuid())
+  id             String              @id @default(uuid())
   name           String
   organizationId String
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @default(now())
-
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  sections      Section[]
-  evaluation Evaluation[]
-
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @default(now())
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  evaluation     Evaluation[]
+  sections       Section[]
+  students       StudentEnrollment[]
 }
 
-
 model Section {
-  id        String   @id @default(uuid())
-  name      String
-  classId   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
-
-  class   Class?   @relation(fields: [classId], references: [id], onDelete: Cascade)
-  subjects Subject[]
-  students StudentEnrollment[]
-  evaluation Evaluation[]
-
+  id             String              @id @default(uuid())
+  name           String
+  classId        String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @default(now())
+  organizationId String
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  evaluation     Evaluation[]
+  class          Class?              @relation(fields: [classId], references: [id], onDelete: Cascade)
+  students       StudentEnrollment[]
+  subjects       Subject[]
 }
 
 model StudentEnrollment {
   id        String   @id @default(uuid())
   studentId String
   sectionId String
+  classId   String
   createdAt DateTime @default(now())
-
-  student User    @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  section   Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  student   User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, sectionId])
 }
 
-
 model Subject {
-  id        String   @id @default(uuid())
-  name      String
-  desc      String
-  sectionId String?
-  teacherId String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
-
-  evaluation Evaluation[]
-  section Section? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  teacher User    @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  id             String       @id @default(uuid())
+  name           String
+  desc           String
+  sectionId      String?
+  teacherId      String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @default(now())
+  evaluation     Evaluation[]
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  section        Section?     @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  teacher        User         @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 }
 
-
 model Evaluation {
-  id          String   @id @default(uuid())
+  id          String                 @id @default(uuid())
   name        String
   classId     String
   sectionId   String
   subjectId   String
   createdBy   String
+  maxMarks    Int
+  status      String                 @default("pending")
   questionPdf String
-  answerKey   String?    // optional
-  maxMarks Int
-  status     String    @default("pending") // pending, completed, cancelled
-  createdAt   DateTime   @default(now())
-
-  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
-  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  creator User    @relation(fields: [createdBy], references: [id], onDelete: Cascade)
-
+  answerKey   String?
+  createdAt   DateTime               @default(now())
+  class       Class                  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  creator     User                   @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  section     Section                @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  subject     Subject                @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   submissions EvaluationSubmission[]
 }
 
@@ -275,44 +259,27 @@ model EvaluationSubmission {
   id           String   @id @default(uuid())
   evaluationId String
   studentId    String
-  scriptPdf    String?   // uploaded script
-  isAbsent     Boolean   @default(false)
+  scriptPdf    String?
   totalMark    Int?
+  status       String   @default("submitted")
   feedback     String?
   aiResult     Json?
-  createdAt    DateTime  @default(now())
-  status     String    @default("submitted") // submitted, evaluated, reviewed
-  evaluation Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
-  student    User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  isAbsent     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  EvaluationResult EvaluationResult[]
+  evaluation       Evaluation         @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  student          User               @relation(fields: [studentId], references: [id], onDelete: Cascade)
 }
 
-// model EvaluationResult {
-//   id           String   @id @default(uuid())
-//   submissionId String
-//   questionNo   Int
-//   questionText String
-//   maxMark      Int
-//   aiMark       Int?
-//   teacherMark  Int?
-//   feedback     String?
-//   createdAt    DateTime  @default(now())
-
-//   submission EvaluationSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-
-//   @@unique([submissionId, questionNo])
-// }
-
-
-
 model jackson_store {
-  key        String    @id(map: "_jackson_store_key") @db.VarChar(1500)
-  value      String
-  iv         String?   @db.VarChar(64)
-  tag        String?   @db.VarChar(64)
-  createdAt  DateTime  @default(now()) @db.Timestamp(6)
-  modifiedAt DateTime? @db.Timestamp(6)
-  namespace  String?   @db.VarChar(256)
-
+  key           String          @id(map: "_jackson_store_key") @db.VarChar(1500)
+  value         String
+  iv            String?         @db.VarChar(64)
+  tag           String?         @db.VarChar(64)
+  createdAt     DateTime        @default(now()) @db.Timestamp(6)
+  modifiedAt    DateTime?       @db.Timestamp(6)
+  namespace     String?         @db.VarChar(256)
   jackson_index jackson_index[]
 
   @@index([namespace], map: "_jackson_store_namespace")
@@ -320,11 +287,10 @@ model jackson_store {
 }
 
 model jackson_index {
-  id       Int    @id(map: "_jackson_index_id") @default(autoincrement())
-  key      String @db.VarChar(1500)
-  storeKey String @db.VarChar(1500)
-
-  store jackson_store @relation(fields: [storeKey], references: [key], onDelete: Cascade, onUpdate: NoAction)
+  id       Int           @id(map: "_jackson_index_id") @default(autoincrement())
+  key      String        @db.VarChar(1500)
+  storeKey String        @db.VarChar(1500)
+  store    jackson_store @relation(fields: [storeKey], references: [key], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([key], map: "_jackson_index_key")
   @@index([key, storeKey], map: "_jackson_index_key_store")
@@ -337,4 +303,28 @@ model jackson_ttl {
 
   @@index([expiresAt], map: "_jackson_ttl_expires_at")
   @@ignore
+}
+
+model EvaluationResult {
+  id                   String               @id
+  submissionId         String
+  questionNo           Int
+  questionText         String
+  maxMark              Int
+  aiMark               Int?
+  teacherMark          Int?
+  feedback             String?
+  createdAt            DateTime             @default(now())
+  EvaluationSubmission EvaluationSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  status String @default("submitted")
+
+  @@unique([submissionId, questionNo])
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  TEACHER
+  STUDENT
 }

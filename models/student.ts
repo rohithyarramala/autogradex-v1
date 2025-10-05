@@ -15,6 +15,7 @@ export const getStudents = async (organizationId: string) => {
       studentEnrollments: {
         include: {
           section: true,
+          class: true,
         },
       },
     },
@@ -28,6 +29,8 @@ export const createStudent = async (data: any, organizationId: string) => {
       name: data.name,
       email: data.email,
       password: data.password,
+      // optional roll number stored on the user model
+      ...(data.rollNo ? { rollNo: data.rollNo } : {}),
       organizationMember: {
         create: [{ organizationId: organizationId, role: 'STUDENT' }],
       },
@@ -38,6 +41,7 @@ export const createStudent = async (data: any, organizationId: string) => {
       data: {
         studentId: user.id,
         sectionId: data.sectionId,
+        classId: data.classId,
       },
     });
   }
@@ -45,10 +49,22 @@ export const createStudent = async (data: any, organizationId: string) => {
 };
 
 export const updateStudent = async (id: string, data: any) => {
-  return await prisma.user.update({
-    where: { id },
-    data,
-  });
+  // Only update allowed user fields
+  const updateData: any = {};
+  if (typeof data.name === 'string') updateData.name = data.name;
+  if (typeof data.email === 'string') updateData.email = data.email;
+  if (typeof data.password === 'string') updateData.password = data.password;
+  if (typeof data.rollNo === 'string') updateData.rollNo = data.rollNo;
+
+  const user = await prisma.user.update({ where: { id }, data: updateData });
+
+  // If sectionId provided, replace existing enrollments with the new one
+  if (data.sectionId) {
+    await prisma.studentEnrollment.deleteMany({ where: { studentId: id } });
+    await prisma.studentEnrollment.create({ data: { studentId: id, sectionId: data.sectionId } });
+  }
+
+  return user;
 };
 
 export const deleteStudent = async (id: string) => {

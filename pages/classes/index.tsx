@@ -45,7 +45,7 @@ const ClassesPage = () => {
       const res = await fetch(`/api/classes/${classObj.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: classObj.name, orgId: classObj.orgId }),
+        body: JSON.stringify({ name: classObj.name }),
       });
       if (res.ok) {
         const updated = await res.json();
@@ -58,10 +58,7 @@ const ClassesPage = () => {
       const res = await fetch("/api/classes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: classObj.name,
-          orgId: session?.user?.organizationId || "",
-        }),
+        body: JSON.stringify({ name: classObj.name }),
       });
       if (res.ok) {
         const created = await res.json();

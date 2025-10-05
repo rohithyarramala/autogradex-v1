@@ -19,7 +19,7 @@ async function handleFileUpload(req: NextApiRequest) {
     keepExtensions: true,
     multiples: false,
     filename: (name, ext, part) =>
-      `${Date.now()}-${part.originalFilename || name}${ext}`,
+      `${Date.now()}-${part.originalFilename || name}`,
   });
 
   return new Promise((resolve, reject) => {
@@ -69,6 +69,15 @@ export default async function handler(
         };
 
         const year = new Date().getFullYear().toString();
+        console.log(files);
+        const resolveUploadedFileUrl = (fileField: any) => {
+          if (!fileField) return '';
+          const file = Array.isArray(fileField) ? fileField[0] : fileField;
+          // formidable versions may expose file.filepath or file.path
+          const fp = (file && (file.filepath || (file as any).path || (file as any).filepath)) || null;
+          return fp ? `/files/${path.basename(fp)}` : '';
+        };
+
         const evaluationData = {
           name: Array.isArray(fields.name) ? fields.name[0] : fields.name,
           classId: Array.isArray(fields.classId)
@@ -81,24 +90,15 @@ export default async function handler(
             ? fields.subjectId[0]
             : fields.subjectId,
           maxMarks: Number(fields.maxMarks),
-          questionPdf:
-            files.questionPaper &&
-            !Array.isArray(files.questionPaper) &&
-            files.questionPaper?.filepath
-              ? `/files/${path.basename(files.questionPaper[0].filepath)}`
-              : '',
-          answerKey:
-            files.keyScript &&
-            !Array.isArray(files.keyScript) &&
-            files.keyScript?.filepath
-              ? `/files/${path.basename(files.keyScript[0].filepath)}`
-              : '',
+          questionPdf: resolveUploadedFileUrl(files.questionPaper),
+          answerKey: resolveUploadedFileUrl(files.keyScript),
           status: 'pending',
           createdBy: Array.isArray(fields.createdBy)
             ? fields.createdBy[0]
             : fields.createdBy,
         };
 
+        console.log('Evaluation Data:', evaluationData);
         // Validate required fields
         if (
           !evaluationData.name ||

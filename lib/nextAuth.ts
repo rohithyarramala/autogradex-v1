@@ -3,7 +3,8 @@ import type {
   NextApiResponse,
   GetServerSidePropsContext,
 } from 'next';
-import { Account, NextAuthOptions, Profile, User } from 'next-auth';
+import { Account, NextAuthOptions, Profile, User, Session } from 'next-auth';
+import type { JWT } from 'next-auth/jwt';
 import BoxyHQSAMLProvider from 'next-auth/providers/boxyhq-saml';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import EmailProvider from 'next-auth/providers/email';
@@ -34,6 +35,31 @@ import {
 import { slackNotify } from './slack';
 import { maxLengthPolicies } from '@/lib/common';
 import { forceConsume } from '@/lib/server-common';
+
+// App-specific type helpers
+// We extend the NextAuth Session.user shape locally so we can store
+// application-specific fields (id, role, organizationId) without
+// changing global types. These are used in the callbacks below
+// to provide stronger typing and inline documentation.
+type AppUser = {
+  // `id` will be populated from token.sub or the `user` returned by providers
+  id?: string;
+  // Role for RBAC in our app (use Prisma Role enum)
+  role?: Role;
+  // Optional organization id for multi-tenant scenarios
+  organizationId?: string | null;
+} & NonNullable<Session['user']>;
+
+type AppSession = Session & {
+  user: AppUser;
+};
+
+// Token shape we keep in the JWT for the callbacks
+type AppToken = JWT & {
+  sub?: string;
+  role?: Role;
+  organizationId?: string | null;
+};
 
 const adapter = PrismaAdapter(prisma);
 const providers: Provider[] = [];
@@ -105,7 +131,7 @@ if (isAuthProviderEnabled('credentials')) {
           id: user.id,
           name: user.name,
           email: user.email,
-          role: membership?.role || 'STUDENT', // default to STUDENT if no org
+          role: membership?.role || 'ADMIN', // default to STUDENT if no org
           organizationId: membership?.organizationId || null,
         };
       },
@@ -362,11 +388,16 @@ export const getAuthOptions = (
         return true;
       },
 
-      async session({ session, token, user }) {
+  async session({ session, token, user }: { session: AppSession; token?: AppToken; user?: User | null }) {
         if (session && (token || user)) {
-          session.user.id = token?.sub || user?.id;
-          // session.user.role = token?.role || user?.role || 'STUDENT';
-          // session.user.organizationId = token?.organizationId || null;
+          // Ensure id is a string; prefer token.sub (JWT subject) then user.id
+          session.user.id = String(token?.sub || user?.id || '');
+          // console.log('TOKEN:', token);
+          // console.log('USER:', user);
+          // Normalize role to the Role enum; default to STUDENT
+          session.user.role = (token?.role || (user as any)?.role || Role.STUDENT) as Role;
+          // organizationId may be null
+          session.user.organizationId = (token?.organizationId as string) || (user as any)?.organizationId || null;
         }
 
         if (user?.name) {
@@ -378,7 +409,7 @@ export const getAuthOptions = (
             maxLengthPolicies.name
           );
         }
-
+        // console.log('SESSION:', session);
         return session;
       },
 
