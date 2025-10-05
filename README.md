@@ -3,6 +3,7 @@
 1. npx prisma migrate reset --force --skip-seed
 2. npx prisma db pull
 3. npx prisma migrate dev --name update_schema
+4. git merge upstream/main
 
 #Build
 
