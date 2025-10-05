@@ -61,7 +61,7 @@ export const updateStudent = async (id: string, data: any) => {
   // If sectionId provided, replace existing enrollments with the new one
   if (data.sectionId) {
     await prisma.studentEnrollment.deleteMany({ where: { studentId: id } });
-    await prisma.studentEnrollment.create({ data: { studentId: id, sectionId: data.sectionId } });
+    await prisma.studentEnrollment.create({ data: { studentId: id, sectionId: data.sectionId, classId: data.classId} });
   }
 
   return user;
