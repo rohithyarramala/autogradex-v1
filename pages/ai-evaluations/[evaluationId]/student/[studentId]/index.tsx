@@ -34,11 +34,11 @@ interface AiDataItem {
 }
 
 interface SubmissionData {
-  aiResult?: { 
+  aiResult?: {
     totalMarkAwarded: number;
     totalMarks: number;
     ai_data: AiDataItem[];
-   } | null; // Adjusted to match backend structure
+  } | null; // Adjusted to match backend structure
   scriptPdf?: string;
   evaluation?: {
     questionPdf?: string;
@@ -46,10 +46,12 @@ interface SubmissionData {
   };
 }
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:4002'; // Frontend env variable
+// const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:4002'; // Frontend env variable
 
 const StudentEvaluationPage = () => {
-  const [currentTab, setCurrentTab] = useState<'question' | 'model' | 'student' | 'ai'>('student');
+  const [currentTab, setCurrentTab] = useState<
+    'question' | 'model' | 'student' | 'ai'
+  >('student');
   const [zoomLevel, setZoomLevel] = useState(1.0);
   const [currentQuestion, setCurrentQuestion] = useState(1);
   const [paperUrl, setPaperUrl] = useState('');
@@ -64,13 +66,16 @@ const StudentEvaluationPage = () => {
     student: submission?.scriptPdf || '',
     ai: '',
   };
+  // console.log(pdfUrls);
   // Fetch submission data
   useEffect(() => {
     if (!evaluationId || !studentId) return;
 
     const fetchData = async () => {
       try {
-        const res = await fetch(`/api/ai-evaluations/${evaluationId}/student/${studentId}`);
+        const res = await fetch(
+          `/api/ai-evaluations/${evaluationId}/student/${studentId}`
+        );
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const data: SubmissionData = await res.json();
         setSubmission(data);
@@ -91,36 +96,49 @@ const StudentEvaluationPage = () => {
     }
 
     const totalQuestions = submission.aiResult.ai_data.length;
-    const questionIndex = Math.max(1, Math.min(currentQuestion, totalQuestions));
+    const questionIndex = Math.max(
+      1,
+      Math.min(currentQuestion, totalQuestions)
+    );
     setCurrentQuestion(questionIndex);
     setPaperUrl(pdfUrls[currentTab] || '');
   }, [submission, currentTab, pdfUrls]);
 
   const totalQuestions = submission?.aiResult?.ai_data?.length || 0;
-  const currentQuestionData = submission?.aiResult?.ai_data?.[currentQuestion - 1];
+  const currentQuestionData =
+    submission?.aiResult?.ai_data?.[currentQuestion - 1];
 
   const aggregatedData = useMemo(() => {
     if (!submission?.aiResult?.ai_data) return null;
 
-    const coMap: { [key: string]: { total: number; awarded: number; count: number } } = {};
-    const poMap: { [key: string]: { total: number; awarded: number; count: number } } = {};
-    const psoMap: { [key: string]: { total: number; awarded: number; count: number } } = {};
+    const coMap: {
+      [key: string]: { total: number; awarded: number; count: number };
+    } = {};
+    const poMap: {
+      [key: string]: { total: number; awarded: number; count: number };
+    } = {};
+    const psoMap: {
+      [key: string]: { total: number; awarded: number; count: number };
+    } = {};
 
     submission.aiResult.ai_data.forEach((item) => {
       if (item.co) {
-        if (!coMap[item.co]) coMap[item.co] = { total: 0, awarded: 0, count: 0 };
+        if (!coMap[item.co])
+          coMap[item.co] = { total: 0, awarded: 0, count: 0 };
         coMap[item.co].total += item.marks;
         coMap[item.co].awarded += item.marks_awarded;
         coMap[item.co].count += 1;
       }
       if (item.po) {
-        if (!poMap[item.po]) poMap[item.po] = { total: 0, awarded: 0, count: 0 };
+        if (!poMap[item.po])
+          poMap[item.po] = { total: 0, awarded: 0, count: 0 };
         poMap[item.po].total += item.marks;
         poMap[item.po].awarded += item.marks_awarded;
         poMap[item.po].count += 1;
       }
       if (item.pso) {
-        if (!psoMap[item.pso]) psoMap[item.pso] = { total: 0, awarded: 0, count: 0 };
+        if (!psoMap[item.pso])
+          psoMap[item.pso] = { total: 0, awarded: 0, count: 0 };
         psoMap[item.pso].total += item.marks;
         psoMap[item.pso].awarded += item.marks_awarded;
         psoMap[item.pso].count += 1;
@@ -134,7 +152,12 @@ const StudentEvaluationPage = () => {
   const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.1, 0.5));
 
   const handleQuestionChange = (newQuestionNumber: number) => {
-    if (!submission?.aiResult?.ai_data || newQuestionNumber < 1 || newQuestionNumber > totalQuestions) return;
+    if (
+      !submission?.aiResult?.ai_data ||
+      newQuestionNumber < 1 ||
+      newQuestionNumber > totalQuestions
+    )
+      return;
     setCurrentQuestion(newQuestionNumber);
   };
 
@@ -143,29 +166,41 @@ const StudentEvaluationPage = () => {
 
     setSubmission((prev) => {
       if (!prev?.aiResult?.ai_data) return prev;
+
+      // Create a deep copy of ai_data to avoid mutating state directly
       const newAiData = [...prev.aiResult.ai_data];
       const questionIndex = currentQuestion - 1;
       const newMarkingScheme = [...newAiData[questionIndex].marking_scheme];
+
+      // Update the status of the marking point
       newMarkingScheme[pointIndex].status = newStatus;
 
+      // Calculate new marks awarded for the current question
       let newMarksAwarded = 0;
       newMarkingScheme.forEach((point) => {
         if (point.status) newMarksAwarded += point.mark;
       });
 
+      // Update the current question's data
       newAiData[questionIndex] = {
         ...newAiData[questionIndex],
         marking_scheme: newMarkingScheme,
         marks_awarded: newMarksAwarded,
       };
 
-      let newTotal = 0;
-      newAiData.forEach((q) => (newTotal += q.marks_awarded));
+      // Recalculate totalMarkAwarded for the entire submission
+      const newTotalMarkAwarded = newAiData.reduce(
+        (total, question) => total + question.marks_awarded,
+        0
+      );
 
       return {
         ...prev,
-        aiResult: { ...prev.aiResult, ai_data: newAiData },
-        totalMarkAwarded: newTotal,
+        aiResult: {
+          ...prev.aiResult,
+          ai_data: newAiData,
+          totalMarkAwarded: newTotalMarkAwarded, // Ensure this is updated
+        },
       };
     });
   };
@@ -188,15 +223,18 @@ const StudentEvaluationPage = () => {
   const handleSaveChanges = async () => {
     if (!submission) return;
     try {
-      const res = await fetch(`/api/ai-evaluations/${evaluationId}/student/${studentId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          aiResult: submission.aiResult,
-          totalMarkAwarded: submission?.aiResult?.totalMarkAwarded,
-          totalMarks: submission?.aiResult?.totalMarks,
-        }),
-      });
+      const res = await fetch(
+        `/api/ai-evaluations/${evaluationId}/student/${studentId}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            aiResult: submission.aiResult,
+            totalMarkAwarded: submission?.aiResult?.totalMarkAwarded,
+            totalMarks: submission?.aiResult?.totalMarks,
+          }),
+        }
+      );
       if (!res.ok) throw new Error('Failed to save changes');
       console.log('Changes saved:', submission);
       alert('Changes saved successfully!');
@@ -206,8 +244,13 @@ const StudentEvaluationPage = () => {
     }
   };
 
+  useEffect(() => {
+    console.log('Current Tab:', currentTab, 'Paper URL:', paperUrl);
+    // console.log('Image Index:', imageIndex);
+  }, [currentTab, paperUrl]);
 
   const getContent = useMemo(() => {
+    
     if (currentTab === 'ai') {
       if (!submission?.aiResult?.ai_data) {
         return (
@@ -222,13 +265,19 @@ const StudentEvaluationPage = () => {
 
       return (
         <div className="p-4 overflow-auto h-full">
-          <h2 className="text-xl font-bold mb-4 text-[var(--primary-text-color)]">AI Evaluation Report</h2>
+          <h2 className="text-xl font-bold mb-4 text-[var(--primary-text-color)]">
+            AI Evaluation Report
+          </h2>
           {submission.aiResult.ai_data.map((item, idx) => (
             <Card key={idx} className="mb-4 shadow-xl">
               <Card.Body>
-                <Card.Title>Question {idx + 1}: {item.question_id}</Card.Title>
+                <Card.Title>
+                  Question {idx + 1}: {item.question_id}
+                </Card.Title>
                 <p>{item.question}</p>
-                <p>Marks Awarded: {item.marks_awarded}/{item.marks}</p>
+                <p>
+                  Marks Awarded: {item.marks_awarded}/{item.marks}
+                </p>
                 <p>Feedback: {item.feedback}</p>
                 <p>Difficulty: {item.difficulty}</p>
                 <p>Blooms Level: {item.blooms_level}</p>
@@ -237,12 +286,16 @@ const StudentEvaluationPage = () => {
                 <p>PO: {item.po}</p>
                 <p>PSO: {item.pso}</p>
                 <p>AI Confidence: {item.ai_confidence}%</p>
-                <p>Teacher Intervention: {item.teacher_intervention_required ? 'Yes' : 'No'}</p>
+                <p>
+                  Teacher Intervention:{' '}
+                  {item.teacher_intervention_required ? 'Yes' : 'No'}
+                </p>
                 <h4 className="font-semibold mt-2">Marking Scheme:</h4>
                 <ul className="list-disc pl-5">
                   {item.marking_scheme.map((mp, mpi) => (
                     <li key={mpi}>
-                      {mp.point} - {mp.mark} mark{mp.mark > 1 ? 's' : ''} - {mp.status ? 'Awarded' : 'Not Awarded'}
+                      {mp.point} - {mp.mark} mark{mp.mark > 1 ? 's' : ''} -{' '}
+                      {mp.status ? 'Awarded' : 'Not Awarded'}
                     </li>
                   ))}
                 </ul>
@@ -252,27 +305,63 @@ const StudentEvaluationPage = () => {
           <Card className="shadow-xl">
             <Card.Body>
               <Card.Title>Overall Stats</Card.Title>
-              <p>Total Marks: {submission?.aiResult?.totalMarkAwarded}/{submission?.aiResult?.totalMarks} ({submission?.aiResult?.totalMarks ? ((submission?.aiResult?.totalMarkAwarded / submission?.aiResult?.totalMarks) * 100).toFixed(2) : 0}%)</p>
-              <Progress className="progress-primary" value={submission?.aiResult?.totalMarkAwarded} max={submission?.aiResult?.totalMarks} />
+              <p>
+                Total Marks: {submission?.aiResult?.totalMarkAwarded}/
+                {submission?.aiResult?.totalMarks} (
+                {submission?.aiResult?.totalMarks
+                  ? (
+                      (submission?.aiResult?.totalMarkAwarded /
+                        submission?.aiResult?.totalMarks) *
+                      100
+                    ).toFixed(2)
+                  : 0}
+                %)
+              </p>
+              <Progress
+                className="progress-primary"
+                value={submission?.aiResult?.totalMarkAwarded}
+                max={submission?.aiResult?.totalMarks}
+              />
               <h4 className="font-semibold mt-4">CO Stats</h4>
               {Object.entries(aggregatedData?.co || {}).map(([key, value]) => (
                 <div key={key} className="mb-2">
-                  <p>{key}: {value.awarded}/{value.total} ({value.count} questions)</p>
-                  <Progress className="progress-primary" value={value.awarded} max={value.total} />
+                  <p>
+                    {key}: {value.awarded}/{value.total} ({value.count}{' '}
+                    questions)
+                  </p>
+                  <Progress
+                    className="progress-primary"
+                    value={value.awarded}
+                    max={value.total}
+                  />
                 </div>
               ))}
               <h4 className="font-semibold mt-4">PO Stats</h4>
               {Object.entries(aggregatedData?.po || {}).map(([key, value]) => (
                 <div key={key} className="mb-2">
-                  <p>{key}: {value.awarded}/{value.total} ({value.count} questions)</p>
-                  <Progress className="progress-primary" value={value.awarded} max={value.total} />
+                  <p>
+                    {key}: {value.awarded}/{value.total} ({value.count}{' '}
+                    questions)
+                  </p>
+                  <Progress
+                    className="progress-primary"
+                    value={value.awarded}
+                    max={value.total}
+                  />
                 </div>
               ))}
               <h4 className="font-semibold mt-4">PSO Stats</h4>
               {Object.entries(aggregatedData?.pso || {}).map(([key, value]) => (
                 <div key={key} className="mb-2">
-                  <p>{key}: {value.awarded}/{value.total} ({value.count} questions)</p>
-                  <Progress className="progress-primary" value={value.awarded} max={value.total} />
+                  <p>
+                    {key}: {value.awarded}/{value.total} ({value.count}{' '}
+                    questions)
+                  </p>
+                  <Progress
+                    className="progress-primary"
+                    value={value.awarded}
+                    max={value.total}
+                  />
                 </div>
               ))}
             </Card.Body>
@@ -281,7 +370,10 @@ const StudentEvaluationPage = () => {
       );
     }
 
-    const imageIndex = currentTab === 'student' && currentQuestionData ? currentQuestionData.image_index : 1;
+    const imageIndex =
+      currentTab === 'student' && currentQuestionData
+        ? currentQuestionData.image_index
+        : 1;
 
     return (
       <div className="w-full h-full relative overflow-hidden">
@@ -292,7 +384,7 @@ const StudentEvaluationPage = () => {
             transformOrigin: 'center center',
           }}
         >
-          {paperUrl ? (
+          {true ? (
             <PdfViewer
               key={`pdf-${paperUrl}-${imageIndex}`}
               url={paperUrl}
@@ -300,19 +392,31 @@ const StudentEvaluationPage = () => {
               scale={1}
             />
           ) : (
-            <p className="text-[var(--primary-text-color)]">No PDF available for {currentTab} view</p>
+            <p className="text-[var(--primary-text-color)]">
+              No PDF available for {currentTab} view
+            </p>
           )}
         </div>
       </div>
     );
-  }, [currentTab, currentQuestionData, paperUrl, zoomLevel, submission, aggregatedData]);
- const handleFinalize = async () => {
+  }, [
+    currentTab,
+    currentQuestionData,
+    paperUrl,
+    zoomLevel,
+    submission,
+    aggregatedData,
+  ]);
+  const handleFinalize = async () => {
     if (!submission || !evaluationId || !studentId) return;
     try {
-      const res = await fetch(`/api/ai-evaluations/${evaluationId}/student/${studentId}/finalize`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const res = await fetch(
+        `/api/ai-evaluations/${evaluationId}/student/${studentId}/finalize`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
       if (!res.ok) throw new Error('Failed to finalize');
       alert('Evaluation finalized!');
       // Optionally, update local state to reflect finalized status
@@ -321,6 +425,7 @@ const StudentEvaluationPage = () => {
       alert('Failed to finalize');
     }
   };
+
   return (
     <div className="p-4 sm:p-6 bg-white rounded-lg shadow-lg flex flex-col min-h-screen">
       {/* Header */}
@@ -366,7 +471,14 @@ const StudentEvaluationPage = () => {
                   : 'var(--primary-text-color)',
             }}
           >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)} {tab === 'question' ? 'Paper' : tab === 'model' ? 'Answer' : tab === 'student' ? 'Answer' : 'Report'}
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}{' '}
+            {tab === 'question'
+              ? 'Paper'
+              : tab === 'model'
+                ? 'Answer'
+                : tab === 'student'
+                  ? 'Answer'
+                  : 'Report'}
           </Button>
         ))}
       </div>
@@ -431,7 +543,10 @@ const StudentEvaluationPage = () => {
                 backgroundColor: 'var(--primary-color-500)',
                 color: 'var(--primary-foreground-color)',
               }}
-              disabled={currentQuestion === totalQuestions || !submission?.aiResult?.ai_data}
+              disabled={
+                currentQuestion === totalQuestions ||
+                !submission?.aiResult?.ai_data
+              }
               onClick={() => handleQuestionChange(currentQuestion + 1)}
             >
               Next
@@ -447,14 +562,32 @@ const StudentEvaluationPage = () => {
             ) : (
               <div className="space-y-1">
                 {[
-                  { label: 'Question ID', value: currentQuestionData?.question_id },
+                  {
+                    label: 'Question ID',
+                    value: currentQuestionData?.question_id,
+                  },
                   { label: 'Question', value: currentQuestionData?.question },
                   { label: 'Marks', value: currentQuestionData?.marks || 0 },
-                  { label: 'AI Confidence', value: currentQuestionData?.ai_confidence ? `${currentQuestionData.ai_confidence}%` : '0%' },
-                  { label: 'Teacher Intervention', value: currentQuestionData?.teacher_intervention_required ? 'Yes' : 'No' },
+                  {
+                    label: 'Marks Awarded',
+                    value: currentQuestionData?.marks_awarded || 0,
+                  },
+                  {
+                    label: 'AI Confidence',
+                    value: currentQuestionData?.ai_confidence
+                      ? `${currentQuestionData.ai_confidence}%`
+                      : '0%',
+                  },
+                  {
+                    label: 'Teacher Intervention',
+                    value: currentQuestionData?.teacher_intervention_required
+                      ? 'Yes'
+                      : 'No',
+                  },
                 ].map(({ label, value }) => (
                   <p key={label} className="text-sm flex justify-between">
-                    <span className="font-semibold">{label}:</span> <span>{value || '-'}</span>
+                    <span className="font-semibold">{label}:</span>{' '}
+                    <span>{value || '-'}</span>
                   </p>
                 ))}
               </div>
@@ -477,7 +610,9 @@ const StudentEvaluationPage = () => {
                       type="checkbox"
                       className="mr-2 checkbox checkbox-primary"
                       checked={item.status}
-                      onChange={(e) => handleMarkingPointChange(index, e.target.checked)}
+                      onChange={(e) =>
+                        handleMarkingPointChange(index, e.target.checked)
+                      }
                     />
                     <span className="text-[var(--primary-text-color)]">
                       {item.point} ({item.mark} mark{item.mark > 1 ? 's' : ''})
@@ -522,9 +657,14 @@ const StudentEvaluationPage = () => {
 
           <div className="mb-4">
             <span className="font-bold text-[var(--primary-text-color)]">
-              Total Marks: {submission?.aiResult?.totalMarkAwarded || 0}/{submission?.aiResult?.totalMarks || 0} (
+              Total Marks: {submission?.aiResult?.totalMarkAwarded || 0}/
+              {submission?.aiResult?.totalMarks || 0} (
               {submission?.aiResult?.totalMarks
-                ? ((submission?.aiResult?.totalMarkAwarded / submission?.aiResult?.totalMarks) * 100).toFixed(2)
+                ? (
+                    (submission?.aiResult?.totalMarkAwarded /
+                      submission?.aiResult?.totalMarks) *
+                    100
+                  ).toFixed(2)
                 : 0}
               %)
             </span>

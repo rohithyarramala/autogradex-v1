@@ -1,160 +1,38 @@
-const { faker } = require('@faker-js/faker');
-const { PrismaClient } = require('@prisma/client');
-const client = new PrismaClient();
-const { hash } = require('bcryptjs');
-const { randomUUID } = require('crypto');
+import { PrismaClient } from '@prisma/client';
+import { hash } from 'bcryptjs';
 
-let USER_COUNT = 10;
-const TEAM_COUNT = 5;
-const ADMIN_EMAIL = 'admin@example.com';
-const ADMIN_PASSWORD = 'admin@123';
-const USER_EMAIL = 'user@example.com';
-const USER_PASSWORD = 'user@123';
-async function seedUsers() {
-  const newUsers: any[] = [];
-  await createRandomUser(ADMIN_EMAIL, ADMIN_PASSWORD);
-  await createRandomUser(USER_EMAIL, USER_PASSWORD);
-  await Promise.all(
-    Array(USER_COUNT)
-      .fill(0)
-      .map(() => createRandomUser())
-  );
+const prisma = new PrismaClient();
 
-  console.log('Seeded users', newUsers.length);
-
-  return newUsers;
-
-  async function createRandomUser(
-    email: string | undefined = undefined,
-    password: string | undefined = undefined
-  ) {
-    try {
-      const originalPassword = password || faker.internet.password();
-      email = email || faker.internet.email();
-      password = await hash(originalPassword, 12);
-      const user = await client.user.create({
-        data: {
-          email,
-          name: faker.person.firstName(),
-          password,
-          emailVerified: new Date(),
-        },
-      });
-      newUsers.push({
-        ...user,
-        password: originalPassword,
-      });
-      USER_COUNT--;
-    } catch (ex: any) {
-      if (ex.message.indexOf('Unique constraint failed') > -1) {
-        console.error('Duplicate email', email);
-      } else {
-        console.log(ex);
-      }
-    }
-  }
-}
-
-async function seedTeams() {
-  const newTeams: any[] = [];
-
-  await Promise.all(
-    Array(TEAM_COUNT)
-      .fill(0)
-      .map(() => createRandomTeam())
-  );
-  console.log('Seeded organizations', newTeams.length);
-  return newTeams;
-
-  async function createRandomTeam() {
-    const name = faker.company.name();
-    const organization = await client.organization.create({
-      data: {
-        name,
-        slug: name
-          .toString()
-          .toLowerCase()
-          .replace(/\s+/g, '-')
-          .replace(/[^\w-]+/g, '')
-          .replace(/--+/g, '-')
-          .replace(/^-+/, '')
-          .replace(/-+$/, ''),
-      },
-    });
-    newTeams.push(organization);
-  }
-}
-
-async function seedTeamMembers(users: any[], organizations: any[]) {
-  const newTeamMembers: any[] = [];
-  const roles = ['OWNER', 'MEMBER'];
-  for (const user of users) {
-    const count = Math.floor(Math.random() * (TEAM_COUNT - 1)) + 2;
-    const organizationUsed = new Set();
-    for (let j = 0; j < count; j++) {
-      try {
-        let organizationId;
-        do {
-          organizationId = organizations[Math.floor(Math.random() * TEAM_COUNT)].id;
-        } while (organizationUsed.has(organizationId));
-        organizationUsed.add(organizationId);
-        newTeamMembers.push({
-          role:
-            user.email === ADMIN_EMAIL
-              ? 'OWNER'
-              : user.email === USER_EMAIL
-                ? 'MEMBER'
-                : roles[Math.floor(Math.random() * 2)],
-          organizationId,
-          userId: user.id,
-        });
-      } catch (ex) {
-        console.log(ex);
-      }
-    }
-  }
-
-  await client.organizationMember.createMany({
-    data: newTeamMembers,
+async function seed() {
+  // --- Create Super Admin ---
+  const superAdminPassword = await hash('superadmin@123', 12);
+  const superAdmin = await prisma.user.create({
+    data: {
+      email: 'superadmin@autogradex.com',
+      name: 'Super Admin',
+      password: superAdminPassword,
+      emailVerified: new Date(),
+    },
   });
-  console.log('Seeded organization members', newTeamMembers.length);
+
+  // --- Create a dummy organization for SUPER_ADMIN ---
+  const superAdminOrg = await prisma.organization.create({
+    data: {
+      name: 'Autogradex',
+      slug: 'autogradex',
+      members: {
+        create: {
+          userId: superAdmin.id,
+          role: 'SUPER_ADMIN',
+        },
+      },
+    },
+  });
+
+  console.log('Super Admin created:', superAdmin.email);
+  console.log('Fake organization created for Super Admin:', superAdminOrg.name);
 }
 
-async function seedInvitations(organizations: any[], users: any[]) {
-  const newInvitations: any[] = [];
-  for (const organization of organizations) {
-    const count = Math.floor(Math.random() * users.length) + 2;
-    for (let j = 0; j < count; j++) {
-      try {
-        const invitation = await client.invitation.create({
-          data: {
-            organizationId: organization.id,
-            invitedBy: users[Math.floor(Math.random() * users.length)].id,
-            email: faker.internet.email(),
-            role: 'MEMBER',
-            sentViaEmail: true,
-            token: randomUUID(),
-            allowedDomains: [],
-            expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-          },
-        });
-        newInvitations.push(invitation);
-      } catch (ex) {
-        console.log(ex);
-      }
-    }
-  }
-
-  console.log('Seeded invitations', newInvitations.length);
-
-  return newInvitations;
-}
-
-async function init() {
-  const users = await seedUsers();
-  const organizations = await seedTeams();
-  await seedTeamMembers(users, organizations);
-  await seedInvitations(organizations, users);
-}
-
-init();
+seed()
+  .catch((e) => console.error(e))
+  .finally(() => prisma.$disconnect());

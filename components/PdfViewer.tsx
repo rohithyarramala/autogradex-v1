@@ -17,6 +17,9 @@ export default function PdfViewer({ url, pageNumber = 1, scale = 1 }: PdfViewerP
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  console.log('PdfViewer: Rendering with URL', url, 'and pageNumber', pageNumber);
+  console.log(url);
+
   useEffect(() => {
     console.log('PdfViewer: pageNumber prop changed to', pageNumber); // Debug
     setCurrentPage(Math.max(1, pageNumber));

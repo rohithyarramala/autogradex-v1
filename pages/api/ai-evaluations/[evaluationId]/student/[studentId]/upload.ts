@@ -11,14 +11,14 @@ export const config = {
 };
 
 async function handleFileUpload(req: NextApiRequest) {
-  const uploadDir = path.join('public', 'scripts');
+  const uploadDir = path.join('uploads', 'pdfs');
   await fs.mkdir(uploadDir, { recursive: true });
 
   const form = formidable({
     uploadDir,
     keepExtensions: true,
     multiples: false,
-    filename: (name, ext, part) => `${Date.now()}-${part.originalFilename || name}${ext}`,
+    filename: (name, ext, part) => `${Date.now()}-${part.originalFilename || name}`,
   });
 
   return new Promise((resolve, reject) => {
@@ -44,7 +44,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!scriptFile || !scriptFile[0]?.filepath) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
-    const scriptPdfPath = `/scripts/${path.basename(scriptFile[0].filepath)}`;
+    const scriptPdfPath = `/api/pdf/${path.basename(scriptFile[0].filepath)}`;
     // Update submission
     const submission = await prisma.evaluationSubmission.findFirst({
       where: { evaluationId, studentId },

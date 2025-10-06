@@ -84,7 +84,7 @@ model Organization {
 
   sections Section[]
   subjects Subject[]
-
+  evaluations Evaluation[]
   @@index([billingId])
 }
 
@@ -245,6 +245,8 @@ model Evaluation {
   createdBy   String
   maxMarks    Int
   status      String                 @default("pending")
+  organizationId String
+  org         Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   questionPdf String
   answerKey   String?
   createdAt   DateTime               @default(now())

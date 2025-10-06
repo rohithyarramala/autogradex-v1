@@ -20,7 +20,8 @@ const TeamDropdown = () => {
   const { t } = useTranslation('common');
 
   const role = data?.user?.role || 'STUDENT'; // default fallback
-  // const role = "TEACHER";
+
+  console.log('User Role:', role); // Debugging line to check the role value
   const currentTeam = (organizations || []).find(
     (organization) => organization.slug === router.query.slug
   );
@@ -41,8 +42,33 @@ const TeamDropdown = () => {
         ],
       },
     ];
+    //  const baseMenus = [
+    //   {
+    //     id: 1,
+    //     name: t('profile'),
+    //     items: [
+    //       {
+    //         id: data?.user.id,
+    //         name: data?.user?.name,
+    //         href: '/settings/account',
+    //         icon: UserCircleIcon,
+    //       },
+    //     ],
+    //   },
+    // ];
 
-    if (role === 'ADMIN') {
+    if (role === 'SUPER_ADMIN') {
+         baseMenus.push({
+        id: 2,
+        name: t('Organization'),
+        items: (organizations || []).map((organization) => ({
+          id: organization.id,
+          name: organization.name,
+          href: `/organizations/${organization.slug}/products`,
+          icon: FolderIcon,
+        })),
+      });
+    } else if (role === 'ADMIN') {
       baseMenus.push({
         id: 2,
         name: t('Organization'),

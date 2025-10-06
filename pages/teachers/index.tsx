@@ -1,4 +1,5 @@
-"use client"
+"use client";
+
 import { useState, useEffect } from "react";
 import { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/DataTable";
@@ -12,63 +13,105 @@ interface Teacher {
   email: string;
   password?: string;
   organizationId?: string;
-    subject?: string;
-    classes?: number;
-    students?: number;
 }
 
 const TeachersPage = () => {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(false);
-
   const [openModal, setOpenModal] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
+  const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
+  const [emailAvailable, setEmailAvailable] = useState(true);
   const { data: session } = useSession();
-  console.log('Session:', session);
 
   // Fetch teachers on page load
   useEffect(() => {
     setLoading(true);
-    fetch('/api/teachers')
-      .then(res => res.json())
-      .then(data => setTeachers(data))
+    fetch("/api/teachers")
+      .then((res) => res.json())
+      .then((data) => setTeachers(data))
       .finally(() => setLoading(false));
   }, []);
 
+  // Check email availability
+  const checkEmailAvailability = async (email: string) => {
+    if (!email) return;
+    try {
+      const res = await fetch(`/api/users/check-email?email=${encodeURIComponent(email)}`);
+      const data = await res.json();
+      setEmailAvailable(data.available);
+    } catch (err) {
+      console.error("Email check failed", err);
+    }
+  };
+
   const handleDelete = async (id: string | number) => {
     setLoading(true);
-    await fetch(`/api/teachers/${id}`, { method: 'DELETE' });
+    await fetch(`/api/teachers/${id}`, { method: "DELETE" });
     setTeachers((prev) => prev.filter((t) => t.id !== id));
     setLoading(false);
   };
 
   const handleSave = async (teacher: Teacher) => {
-    setLoading(true);
-    if (!teacher.name || !teacher.email || !teacher.password) {
-      alert('Name, email, password, and organization are required');
-      setLoading(false);
+    // Reset errors
+    setErrors({});
+    const newErrors: typeof errors = {};
+
+    if (!teacher.name) newErrors.name = "Name is required";
+    if (!teacher.email) newErrors.email = "Email is required";
+    if (!editingTeacher?.id && !teacher.password) newErrors.password = "Password is required";
+
+    if (!editingTeacher?.id && !emailAvailable) {
+      newErrors.email = "Email is already taken";
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
-    const orgId = session?.user?.organizationId;
-    const res = await fetch('/api/teachers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...teacher, organizationId: orgId }),
-    });
-    if (res.ok) {
-      const newTeacher = await res.json();
-      setTeachers((prev) => [...prev, newTeacher]);
+
+    setLoading(true);
+
+    try {
+      if (teacher.id) {
+        // Update
+        const res = await fetch(`/api/teachers/${teacher.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: teacher.name, email: teacher.email }),
+        });
+        if (res.ok) {
+          const updatedTeacher = await res.json();
+          setTeachers((prev) => prev.map((t) => (t.id === updatedTeacher.id ? updatedTeacher : t)));
+        } else {
+          alert("Failed to update teacher");
+        }
+      } else {
+        // Create
+        const orgId = session?.user?.organizationId;
+        const res = await fetch("/api/teachers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...teacher, organizationId: orgId }),
+        });
+        if (res.ok) {
+          const newTeacher = await res.json();
+          setTeachers((prev) => [...prev, newTeacher]);
+        } else {
+          alert("Failed to add teacher");
+        }
+      }
+
       setOpenModal(false);
       setEditingTeacher(null);
-    } else {
-      alert('Failed to add teacher');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const columns: ColumnDef<Teacher>[] = [
     { accessorKey: "name", header: "Teacher Name" },
-     { accessorKey: "email", header: "Email" },
+    { accessorKey: "email", header: "Email" },
     {
       id: "actions",
       header: "Actions",
@@ -106,7 +149,7 @@ const TeachersPage = () => {
         <Button
           color="success"
           onClick={() => {
-            setEditingTeacher({ name: "", email: "", password: "", subject: "", classes: 0, students: 0, organizationId: "" });
+            setEditingTeacher({ name: "", email: "", password: "", organizationId: "" });
             setOpenModal(true);
           }}
         >
@@ -119,62 +162,54 @@ const TeachersPage = () => {
 
       {/* Modal */}
       <Modal open={openModal} close={() => setOpenModal(false)}>
-        <Modal.Header>
-          {editingTeacher?.id ? "Edit Teacher" : "Add Teacher"}
-        </Modal.Header>
+        <Modal.Header>{editingTeacher?.id ? "Edit Teacher" : "Add Teacher"}</Modal.Header>
         <Modal.Body>
+          {/* Name */}
           <div className="mb-4">
             <label className="block text-sm font-medium">Name</label>
             <input
               type="text"
-              className="w-full border p-2 rounded mt-1"
+              className={`w-full border p-2 rounded mt-1 ${errors.name ? "border-red-500" : ""}`}
               value={editingTeacher?.name || ""}
               onChange={(e) =>
                 setEditingTeacher((prev) => (prev ? { ...prev, name: e.target.value } : null))
               }
             />
+            {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
           </div>
+
+          {/* Email */}
           <div className="mb-4">
             <label className="block text-sm font-medium">Email</label>
             <input
               type="email"
-              className="w-full border p-2 rounded mt-1"
+              className={`w-full border p-2 rounded mt-1 ${errors.email ? "border-red-500" : ""}`}
               value={editingTeacher?.email || ""}
-              onChange={(e) =>
-                setEditingTeacher((prev) => (prev ? { ...prev, email: e.target.value } : null))
-              }
+              onChange={(e) => {
+                const email = e.target.value;
+                setEditingTeacher((prev) => (prev ? { ...prev, email } : null));
+                checkEmailAvailability(email);
+              }}
             />
+            {!emailAvailable && <p className="text-red-500 text-sm mt-1">Email is already taken</p>}
+            {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
           </div>
-          {/* Only show password field when adding a new teacher */}
+
+          {/* Password (only new teacher) */}
           {!editingTeacher?.id && (
             <div className="mb-4">
               <label className="block text-sm font-medium">Password</label>
               <input
                 type="password"
-                className="w-full border p-2 rounded mt-1"
+                className={`w-full border p-2 rounded mt-1 ${errors.password ? "border-red-500" : ""}`}
                 value={editingTeacher?.password || ""}
                 onChange={(e) =>
                   setEditingTeacher((prev) => (prev ? { ...prev, password: e.target.value } : null))
                 }
               />
+              {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
             </div>
           )}
-          {/* <div className="mb-4">
-            <label className="block text-sm font-medium">Organization ID</label> */}
-            {/* Organization ID is set from session, not entered manually */}
-          {/* </div> */}
-          {/* <div className="mb-4">
-            <label className="block text-sm font-medium">Subject</label> */}
-              {/* Subject is no longer required */}
-          {/* </div> */}
-          {/* <div className="mb-4">
-            <label className="block text-sm font-medium">Classes</label> */}
-              {/* Classes is no longer required */}
-          {/* </div> */}
-          {/* <div className="mb-4">
-            <label className="block text-sm font-medium">Students</label> */}
-              {/* Students is no longer required */}
-          {/* </div> */}
         </Modal.Body>
         <Modal.Footer>
           <Button
@@ -186,7 +221,11 @@ const TeachersPage = () => {
           >
             Cancel
           </Button>
-          <Button color="primary" onClick={() => editingTeacher && handleSave(editingTeacher)}>
+          <Button
+            color="primary"
+            onClick={() => editingTeacher && handleSave(editingTeacher)}
+            disabled={!emailAvailable}
+          >
             Save
           </Button>
         </Modal.Footer>

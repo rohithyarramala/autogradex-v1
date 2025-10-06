@@ -67,7 +67,6 @@ const EvaluationDetailPage = () => {
     () => [
       { accessorKey: 'student.name', header: 'Student Name' },
       { accessorKey: 'status', header: 'Status' },
-      { accessorKey: 'totalMark', header: 'Score' },
       {
         id: 'actions',
         header: 'Actions',

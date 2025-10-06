@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import formidable from 'formidable';
 import fs from 'fs/promises';
 import path from 'path';
+import { getSession } from '@/lib/session';
 
 export const config = {
   api: {
@@ -11,7 +12,7 @@ export const config = {
 };
 
 async function handleFileUpload(req: NextApiRequest) {
-  const uploadDir = path.join('public', 'files');
+  const uploadDir = path.join(process.cwd(), 'uploads', 'pdfs');
   await fs.mkdir(uploadDir, { recursive: true });
 
   const form = formidable({
@@ -22,7 +23,7 @@ async function handleFileUpload(req: NextApiRequest) {
       `${Date.now()}-${part.originalFilename || name}`,
   });
 
-  return new Promise((resolve, reject) => {
+  return new Promise<{ fields: formidable.Fields; files: formidable.Files }>((resolve, reject) => {
     form.parse(req, (err, fields, files) => {
       if (err) reject(err);
       resolve({ fields, files });
@@ -30,21 +31,28 @@ async function handleFileUpload(req: NextApiRequest) {
   });
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
+    // Get session & organization
+    const session = await getSession(req, res);
+    if (!session?.user) return res.status(401).json({ error: 'Unauthorized' });
+    const organizationId = session.user.organizationId;
+
     switch (req.method) {
       case 'GET': {
+        if (!organizationId || typeof organizationId !== 'string') {
+        return res.status(400).json({ error: 'Invalid or missing organizationId' });
+      }
         const evaluations = await prisma.evaluation.findMany({
-          include: {
+          where: { organizationId : organizationId },
+          include: { 
             class: true,
             section: true,
             subject: true,
             submissions: true,
           },
         });
+
         const mapped = evaluations.map((e) => ({
           id: e.id,
           name: e.name,
@@ -52,155 +60,110 @@ export default async function handler(
           sectionId: e.sectionId,
           subjectId: e.subjectId,
           status: e.status,
-          students: e.submissions.map((s) => ({
-            id: s.studentId,
-            name: '',
-          })),
-          questionPaper: e.questionPdf,
+          organizationId: e.organizationId,
+          students: e.submissions.map((s) => ({ id: s.studentId, name: '' })),
+          questionPdf: e.questionPdf,
           keyScript: e.answerKey,
         }));
-        res.status(200).json(mapped);
-        break;
-      }
-      case 'POST': {
-        const { fields, files } = (await handleFileUpload(req)) as {
-          fields: formidable.Fields;
-          files: formidable.Files;
-        };
 
-        const year = new Date().getFullYear().toString();
-        console.log(files);
+        return res.status(200).json(mapped);
+      }
+
+      case 'POST': {
+        const { fields, files } = await handleFileUpload(req);
+
         const resolveUploadedFileUrl = (fileField: any) => {
           if (!fileField) return '';
           const file = Array.isArray(fileField) ? fileField[0] : fileField;
-          // formidable versions may expose file.filepath or file.path
-          const fp = (file && (file.filepath || (file as any).path || (file as any).filepath)) || null;
-          return fp ? `/files/${path.basename(fp)}` : '';
+          const fp = (file.filepath || (file as any).path);
+          return fp ? `/api/pdf/${path.basename(fp)}` : '';
         };
 
         const evaluationData = {
           name: Array.isArray(fields.name) ? fields.name[0] : fields.name,
-          classId: Array.isArray(fields.classId)
-            ? fields.classId[0]
-            : fields.classId,
-          sectionId: Array.isArray(fields.sectionId)
-            ? fields.sectionId[0]
-            : fields.sectionId,
-          subjectId: Array.isArray(fields.subjectId)
-            ? fields.subjectId[0]
-            : fields.subjectId,
+          classId: Array.isArray(fields.classId) ? fields.classId[0] : fields.classId,
+          sectionId: Array.isArray(fields.sectionId) ? fields.sectionId[0] : fields.sectionId,
+          subjectId: Array.isArray(fields.subjectId) ? fields.subjectId[0] : fields.subjectId,
           maxMarks: Number(fields.maxMarks),
           questionPdf: resolveUploadedFileUrl(files.questionPaper),
           answerKey: resolveUploadedFileUrl(files.keyScript),
           status: 'pending',
-          createdBy: Array.isArray(fields.createdBy)
-            ? fields.createdBy[0]
-            : fields.createdBy,
+          organizationId: organizationId || '',
+          createdBy: Array.isArray(fields.createdBy) ? fields.createdBy[0] : fields.createdBy,
         };
 
-        console.log('Evaluation Data:', evaluationData);
-        // Validate required fields
-        if (
-          !evaluationData.name ||
-          !evaluationData.classId ||
-          !evaluationData.sectionId ||
-          !evaluationData.subjectId ||
-          !evaluationData.createdBy
-        ) {
+        if (!evaluationData.name || !evaluationData.classId || !evaluationData.sectionId || !evaluationData.subjectId || !evaluationData.createdBy) {
           return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        // Validate foreign keys
-        const user = await prisma.user.findUnique({
-          where: { id: evaluationData.createdBy },
-        });
-        if (!user) {
-          return res.status(400).json({
-            error: `Invalid createdBy value: ${evaluationData.createdBy} does not exist in User table`,
-          });
+        // Foreign key validations
+        const user = await prisma.user.findUnique({ where: { id: evaluationData.createdBy } });
+        if (!user) return res.status(400).json({ error: `Invalid createdBy: ${evaluationData.createdBy}` });
+
+        const classRecord = await prisma.class.findUnique({ where: { id: evaluationData.classId } });
+        if (!classRecord) return res.status(400).json({ error: `Invalid classId: ${evaluationData.classId}` });
+
+        const section = await prisma.section.findUnique({ where: { id: evaluationData.sectionId } });
+        if (!section) return res.status(400).json({ error: `Invalid sectionId: ${evaluationData.sectionId}` });
+
+        const subject = await prisma.subject.findUnique({ where: { id: evaluationData.subjectId } });
+        if (!subject) return res.status(400).json({ error: `Invalid subjectId: ${evaluationData.subjectId}` });
+
+        if (!evaluationData.organizationId || typeof evaluationData.organizationId !== 'string') {
+          return res.status(400).json({ error: 'Invalid or missing organizationId' });
         }
+        // Create evaluation
+        const evaluation = await prisma.evaluation.create({ data: evaluationData });
 
-        const classRecord = await prisma.class.findUnique({
-          where: { id: evaluationData.classId },
-        });
-        if (!classRecord) {
-          return res.status(400).json({
-            error: `Invalid classId: ${evaluationData.classId} does not exist in Class table`,
-          });
-        }
-
-        const section = await prisma.section.findUnique({
-          where: { id: evaluationData.sectionId },
-        });
-        if (!section) {
-          return res.status(400).json({
-            error: `Invalid sectionId: ${evaluationData.sectionId} does not exist in Section table`,
-          });
-        }
-
-        const subject = await prisma.subject.findUnique({
-          where: { id: evaluationData.subjectId },
-        });
-        if (!subject) {
-          return res.status(400).json({
-            error: `Invalid subjectId: ${evaluationData.subjectId} does not exist in Subject table`,
-          });
-        }
-
-        // Create the evaluation
-        const evaluation = await prisma.evaluation.create({
-          data: evaluationData,
-        });
-
-        // Find all students enrolled in the section
+        // Create submissions for enrolled students
         const enrollments = await prisma.studentEnrollment.findMany({
-          where: {
-            sectionId: evaluationData.sectionId,
-          },
-          include: {
-            student: true,
-          },
+          where: { sectionId: evaluationData.sectionId },
+          include: { student: true },
         });
 
-        // Create EvaluationSubmission for each student
-        const submissions = await Promise.all(
-          enrollments.map((enrollment) =>
-            prisma.evaluationSubmission.create({
-              data: {
-                evaluationId: evaluation.id,
-                studentId: enrollment.studentId,
-                status: 'submitted',
-                isAbsent: false,
-              },
-            })
-          )
-        );
+        const submissions = await Promise.all(enrollments.map((enrollment) =>
+          prisma.evaluationSubmission.create({
+            data: {
+              evaluationId: evaluation.id,
+              studentId: enrollment.studentId,
+              status: 'submitted',
+              isAbsent: false,
+            },
+          })
+        ));
 
         return res.status(201).json({ ...evaluation, submissions });
       }
+
       case 'DELETE': {
         const { id } = req.query;
-
-        if (!id) {
-          return res.status(400).json({ error: 'Missing evaluation ID' });
-        }
-
-        // req.query values are always string | string[] in Next.js
+        if (!id) return res.status(400).json({ error: 'Missing evaluation ID' });
         const evaluationId = Array.isArray(id) ? id[0] : id;
 
-        // Delete from Prisma
-        await prisma.evaluation.delete({ where: { id: evaluationId } });
+        const evalToDelete = await prisma.evaluation.findUnique({ where: { id: evaluationId } });
+        if (!evalToDelete) return res.status(404).json({ error: 'Evaluation not found' });
+        if (evalToDelete.organizationId !== organizationId) return res.status(403).json({ error: 'Forbidden' });
 
-        res.status(204).end();
-        break;
+        // Delete PDF files
+        const filesToDelete = [evalToDelete.questionPdf, evalToDelete.answerKey];
+        for (const fileUrl of filesToDelete) {
+          if (!fileUrl) continue;
+          const filename = fileUrl.split('/').pop();
+          if (!filename) continue;
+          const filePath = path.join(process.cwd(), 'uploads', 'pdfs', filename);
+          try { await fs.unlink(filePath); } catch (err) { console.warn(`Failed to delete file ${filename}`, err); }
+        }
+
+        await prisma.evaluation.delete({ where: { id: evaluationId } });
+        return res.status(204).end();
       }
 
       default:
         res.setHeader('Allow', ['GET', 'POST', 'DELETE']);
-        res.status(405).end(`Method ${req.method} Not Allowed`);
+        return res.status(405).end(`Method ${req.method} Not Allowed`);
     }
   } catch (error: any) {
     console.error('Error in handler:', error);
-    res.status(500).json({ error: `Server error: ${error.message}` });
+    return res.status(500).json({ error: error.message });
   }
 }

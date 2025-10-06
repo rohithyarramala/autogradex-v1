@@ -20,65 +20,102 @@ interface Student {
 const StudentsPage = () => {
   const { data: session } = useSession();
   const [students, setStudents] = useState<Student[]>([]);
+  const [openModal, setOpenModal] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [sections, setSections] = useState<any[]>([]);
+  const [emailAvailable, setEmailAvailable] = useState(true);
+  const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
+
+  // Fetch students
   const fetchStudents = async () => {
-    const res = await fetch('/api/students');
+    const res = await fetch("/api/students");
     const data = await res.json();
     setStudents(
       (Array.isArray(data) ? data : []).map((student: any) => ({
         id: student.id,
         name: student.name,
         email: student.email,
-        rollNo: student.rollNo || '',
+        rollNo: student.rollNo || "",
         classId: student.studentEnrollments?.[0]?.classId || undefined,
         sectionId: student.studentEnrollments?.[0]?.sectionId || undefined,
-        className: student.studentEnrollments?.[0]?.class?.name || '',
-        section: student.studentEnrollments?.[0]?.section?.name || '',
+        className: student.studentEnrollments?.[0]?.class?.name || "",
+        section: student.studentEnrollments?.[0]?.section?.name || "",
       }))
     );
   };
 
   useEffect(() => {
     fetchStudents();
+    // Fetch classes and sections
+    fetch("/api/classes").then((res) => res.json()).then(setClasses);
+    fetch("/api/sections").then((res) => res.json()).then(setSections);
   }, []);
 
-  const [openModal, setOpenModal] = useState(false);
-  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
-  const [classes, setClasses] = useState<any[]>([]);
-  const [sections, setSections] = useState<any[]>([]);
-  useEffect(() => {
-    // Fetch classes
-    fetch("/api/classes")
-      .then((res) => res.json())
-      .then((data) => setClasses(data));
-    // Fetch sections
-    fetch("/api/sections")
-      .then((res) => res.json())
-      .then((data) => setSections(data));
-  }, []);
+  // Email check
+  const checkEmailAvailability = async (email: string) => {
+    if (!email) return;
+    try {
+      const res = await fetch(`/api/users/check-email?email=${encodeURIComponent(email)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setEmailAvailable(data.available);
+    } catch (err) {
+      console.error("Email check failed", err);
+    }
+  };
 
   const handleDelete = async (id: number) => {
     await fetch(`/api/students/${id}`, { method: "DELETE" });
-    await fetchStudents();
+    fetchStudents();
   };
 
   const handleSave = async (student: Student) => {
-    if (student.id) {
-      await fetch(`/api/students/${student.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: student.name, email: student.email, rollNo: student.rollNo, sectionId: student.sectionId, classId: student.classId }),
-      });
-      await fetchStudents();
-    } else {
-      await fetch('/api/students', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: student.name, email: student.email, password: student.password, rollNo: student.rollNo, sectionId: student.sectionId, classId: student.classId }),
-      });
-      await fetchStudents();
+    // Validate
+    const newErrors: typeof errors = {};
+    if (!student.name) newErrors.name = "Name is required";
+    if (!student.email) newErrors.email = "Email is required";
+    if (!editingStudent?.id && !student.password) newErrors.password = "Password is required";
+    if (!editingStudent?.id && !emailAvailable) newErrors.email = "Email is already taken";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
     }
-    setOpenModal(false);
-    setEditingStudent(null);
+
+    try {
+      if (student.id) {
+        await fetch(`/api/students/${student.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: student.name,
+            email: student.email,
+            rollNo: student.rollNo,
+            sectionId: student.sectionId,
+            classId: student.classId,
+          }),
+        });
+      } else {
+        await fetch("/api/students", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: student.name,
+            email: student.email,
+            password: student.password,
+            rollNo: student.rollNo,
+            sectionId: student.sectionId,
+            classId: student.classId,
+          }),
+        });
+      }
+      fetchStudents();
+      setOpenModal(false);
+      setEditingStudent(null);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const columns: ColumnDef<Student>[] = [
@@ -103,11 +140,7 @@ const StudentsPage = () => {
             >
               Edit
             </Button>
-            <Button
-              size="sm"
-              color="error"
-              onClick={() => handleDelete(student.id)}
-            >
+            <Button size="sm" color="error" onClick={() => handleDelete(student.id)}>
               Delete
             </Button>
           </div>
@@ -133,47 +166,57 @@ const StudentsPage = () => {
 
       <DataTable columns={columns} data={students} />
 
-      {/* Modal */}
       <Modal open={openModal} close={() => setOpenModal(false)}>
-        <Modal.Header>
-          {editingStudent?.id ? "Edit Student" : "Add Student"}
-        </Modal.Header>
+        <Modal.Header>{editingStudent?.id ? "Edit Student" : "Add Student"}</Modal.Header>
         <Modal.Body>
+          {/* Name */}
           <div className="mb-4">
             <label className="block text-sm font-medium">Name</label>
             <input
               type="text"
-              className="w-full border p-2 rounded mt-1"
+              className={`w-full border p-2 rounded mt-1 ${errors.name ? "border-red-500" : ""}`}
               value={editingStudent?.name || ""}
               onChange={(e) =>
                 setEditingStudent((prev) => (prev ? { ...prev, name: e.target.value } : null))
               }
             />
+            {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
           </div>
+
+          {/* Email */}
           <div className="mb-4">
             <label className="block text-sm font-medium">Email</label>
             <input
               type="email"
-              className="w-full border p-2 rounded mt-1"
+              className={`w-full border p-2 rounded mt-1 ${errors.email ? "border-red-500" : ""}`}
               value={editingStudent?.email || ""}
-              onChange={(e) =>
-                setEditingStudent((prev) => (prev ? { ...prev, email: e.target.value } : null))
-              }
+              onChange={(e) => {
+                const email = e.target.value;
+                setEditingStudent((prev) => (prev ? { ...prev, email } : null));
+                checkEmailAvailability(email);
+              }}
             />
+            {!emailAvailable && <p className="text-red-500 text-sm mt-1">Email is already taken</p>}
+            {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
           </div>
+
+          {/* Password */}
           {!editingStudent?.id && (
             <div className="mb-4">
               <label className="block text-sm font-medium">Password</label>
               <input
                 type="password"
-                className="w-full border p-2 rounded mt-1"
+                className={`w-full border p-2 rounded mt-1 ${errors.password ? "border-red-500" : ""}`}
                 value={editingStudent?.password || ""}
                 onChange={(e) =>
                   setEditingStudent((prev) => (prev ? { ...prev, password: e.target.value } : null))
                 }
               />
+              {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
             </div>
           )}
+
+          {/* Roll No */}
           <div className="mb-4">
             <label className="block text-sm font-medium">Roll No</label>
             <input
@@ -185,6 +228,8 @@ const StudentsPage = () => {
               }
             />
           </div>
+
+          {/* Class */}
           <div className="mb-4">
             <label className="block text-sm font-medium">Class</label>
             <select
@@ -200,6 +245,8 @@ const StudentsPage = () => {
               ))}
             </select>
           </div>
+
+          {/* Section */}
           <div className="mb-4">
             <label className="block text-sm font-medium">Section</label>
             <select
@@ -216,6 +263,7 @@ const StudentsPage = () => {
             </select>
           </div>
         </Modal.Body>
+
         <Modal.Footer>
           <Button
             color="ghost"
@@ -226,7 +274,11 @@ const StudentsPage = () => {
           >
             Cancel
           </Button>
-          <Button color="primary" onClick={() => editingStudent && handleSave(editingStudent)}>
+          <Button
+            color="primary"
+            onClick={() => editingStudent && handleSave(editingStudent)}
+            disabled={!emailAvailable}
+          >
             Save
           </Button>
         </Modal.Footer>

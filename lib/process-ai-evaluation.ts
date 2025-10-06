@@ -2,7 +2,7 @@
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { prisma } from './prisma.js';
-import { evaluateStudentAnswers } from '../worker.js';
+import { evaluateStudentAnswers } from '../background_tasks/worker.js';
 
 // ESM-safe __dirname setup
 const __filename = fileURLToPath(import.meta.url);

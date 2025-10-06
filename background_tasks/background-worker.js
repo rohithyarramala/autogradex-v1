@@ -45,10 +45,21 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     return to.concat(ar || Array.prototype.slice.call(from));
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.evaluateStudentAnswers = evaluateStudentAnswers;
+exports.aiEvaluationQueue = void 0;
+exports.enqueueAiEvaluation = enqueueAiEvaluation;
+var bullmq_1 = require("bullmq");
 var genai_1 = require("@google/genai");
+var prisma_1 = require("../lib/prisma");
+var path_1 = require("path");
+require("dotenv/config");
+// Redis connection configuration
+var connection = {
+    host: process.env.REDIS_HOST || 'localhost',
+    port: Number(process.env.REDIS_PORT) || 6379,
+};
+// Initialize Google GenAI
 var genAI = new genai_1.GoogleGenAI({});
-// Define the structured schema for the output based on the provided sample
+// Define the structured schema for the evaluation output
 var evaluationSchema = {
     type: genai_1.Type.OBJECT,
     properties: {
@@ -128,6 +139,7 @@ function uploadFile(filePath, mimeType) {
         });
     });
 }
+// Function to delete a file
 function deleteFile(fileUri) {
     return __awaiter(this, void 0, void 0, function () {
         return __generator(this, function (_a) {
@@ -140,11 +152,9 @@ function deleteFile(fileUri) {
         });
     });
 }
-// Main function to process files and generate evaluation
+// Function to evaluate student answers
 function evaluateStudentAnswers(questionPaperPath_1) {
-    return __awaiter(this, arguments, void 0, function (questionPaperPath, keyScriptPaths, // Optional key scripts
-    studentAnswerPath, totalMarks // Provided total marks
-    ) {
+    return __awaiter(this, arguments, void 0, function (questionPaperPath, keyScriptPaths, studentAnswerPath, totalMarks) {
         var questionPaper, keyScripts, studentAnswer, contents, response, evaluation;
         if (keyScriptPaths === void 0) { keyScriptPaths = []; }
         return __generator(this, function (_a) {
@@ -183,7 +193,7 @@ function evaluateStudentAnswers(questionPaperPath_1) {
                                 },
                             },
                             {
-                                text: "Evaluate the student's answer script based on the question paper and any provided key scripts. \nExtract questions from the question paper, match them to sections in the student's answers (using image_index for page references in the PDF).\nAward marks based on correctness, provide feedback, and fill in all fields as per the schema.\nThe total marks for the exam is ".concat(totalMarks, ".\nKeep Note, if even not answered, keep the question and in place feedback tell not attempted or stike off so keep marks as zero\nkeep All question in question paper\nKeep AI Conficence between 0 to 100 #how sure you are about the evaluation\nIf unsure about an answer, set teacher_intervention_required to true.\nCalculate totalMarkAwarded as the sum of marks_awarded.\nUse the provided schema for strict structured JSON output."),
+                                text: "\nGOAL: Fully evaluate the Student Answer Script against the Question Paper and Key Scripts, generating a final output that is strictly a single JSON object following the defined schema.\n\nINPUT REQUIREMENTS:\n\nQuestion Paper, Student Answer Script (PDF with page indexing), Key Scripts, and the total marks for the exam (".concat(totalMarks, ").\n\nEVALUATION RULES (Lenient/Favorable Marking):\n\nMarking Standard: Adopt a lenient and favorable marking policy (\"in favorision only not much strict\"). Award partial credit generously based on demonstrated effort and understanding.\n\nExtraction: Extract and include ALL questions from the Question Paper in the output, regardless of whether they were attempted.\n\nReferencing: Accurately match each question to the student's answer using the specific image_index (PDF page reference/s).\n\nFEEDBACK & SCORING PROTOCOL:\n\nAttempted Questions: Provide detailed, specific feedback on the content. Do not state \"Not Attempted.\"\n\nUnattempted Questions:\n\nSet the marks_awarded to 0.\n\nThe feedback must explicitly state \"Not Attempted\" or \"Strike Off.\"\n\nREQUIRED METADATA & FINAL CALCULATION:\n\nAI Confidence: Set AI_Conficence to a value between 0 and 100, reflecting the certainty of the evaluation.\n\nIntervention Flag: Set teacher_intervention_required to true if there is any doubt regarding the correctness of the answer or the assigned marks.\n\nFinal Tally: Calculate totalMarkAwarded as the precise sum of all individual marks_awarded.\n\nOUTPUT CONSTRAINT: Verify the accuracy of all questions and awarded marks. The final output must be strictly in JSON format without any additional introductory or concluding text.\n"),
                             },
                         ], false),
                     };
@@ -198,37 +208,87 @@ function evaluateStudentAnswers(questionPaperPath_1) {
                 case 4:
                     response = _a.sent();
                     evaluation = JSON.parse(response.text);
+                    // Clean up uploaded files
+                    return [4 /*yield*/, Promise.all(__spreadArray(__spreadArray([
+                            deleteFile(questionPaper)
+                        ], keyScripts.map(function (ks) { return deleteFile(ks); }), true), [
+                            deleteFile(studentAnswer),
+                        ], false))];
+                case 5:
+                    // Clean up uploaded files
+                    _a.sent();
                     return [2 /*return*/, evaluation];
             }
         });
     });
 }
-// Example usage
-function main() {
-    return __awaiter(this, void 0, void 0, function () {
-        var questionPaper, keyScripts, studentAnswer, totalMarks, result, error_1;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    questionPaper = '';
-                    keyScripts = [];
-                    studentAnswer = '';
-                    totalMarks = 100;
-                    _a.label = 1;
+// Create the BullMQ queue
+exports.aiEvaluationQueue = new bullmq_1.Queue('ai-evaluation', { connection: connection });
+// Create the BullMQ worker
+var worker = new bullmq_1.Worker('ai-evaluation', function (job) { return __awaiter(void 0, void 0, void 0, function () {
+    var _a, evaluationId, studentId, submissionId, questionPaperPath, keyScriptPaths, studentAnswerPath, totalMarks, result, error_1;
+    return __generator(this, function (_b) {
+        switch (_b.label) {
+            case 0:
+                _a = job.data, evaluationId = _a.evaluationId, studentId = _a.studentId, submissionId = _a.submissionId, questionPaperPath = _a.questionPaperPath, keyScriptPaths = _a.keyScriptPaths, studentAnswerPath = _a.studentAnswerPath, totalMarks = _a.totalMarks;
+                _b.label = 1;
+            case 1:
+                _b.trys.push([1, 4, , 5]);
+                return [4 /*yield*/, evaluateStudentAnswers(questionPaperPath, keyScriptPaths, studentAnswerPath, totalMarks)];
+            case 2:
+                result = _b.sent();
+                // Save result to database
+                return [4 /*yield*/, prisma_1.prisma.evaluationSubmission.update({
+                        where: { id: submissionId },
+                        data: {
+                            aiResult: result,
+                            totalMark: result.totalMarkAwarded,
+                            feedback: result.ai_data.map(function (q) { return q.feedback; }).join('\n'),
+                            status: 'evaluated',
+                        },
+                    })];
+            case 3:
+                // Save result to database
+                _b.sent();
+                console.log("Processed AI evaluation for submission ".concat(submissionId));
+                return [2 /*return*/, result];
+            case 4:
+                error_1 = _b.sent();
+                console.error("Error processing job ".concat(job.id, " for submission ").concat(submissionId, ":"), error_1);
+                throw error_1;
+            case 5: return [2 /*return*/];
+        }
+    });
+}); }, { connection: connection });
+// Worker event handlers
+worker.on('completed', function (job) {
+    console.log("Job ".concat(job.id, " completed"));
+});
+worker.on('failed', function (job, err) {
+    console.error("Job ".concat(job === null || job === void 0 ? void 0 : job.id, " failed:"), err);
+});
+// Function to add a job to the queue
+function enqueueAiEvaluation(_a) {
+    return __awaiter(this, arguments, void 0, function (_b) {
+        var evaluationId = _b.evaluationId, studentId = _b.studentId, submissionId = _b.submissionId, questionPdf = _b.questionPdf, keyScripts = _b.keyScripts, answerScript = _b.answerScript, totalMarks = _b.totalMarks;
+        return __generator(this, function (_c) {
+            switch (_c.label) {
+                case 0: return [4 /*yield*/, exports.aiEvaluationQueue.add('evaluate', {
+                        evaluationId: evaluationId,
+                        studentId: studentId,
+                        submissionId: submissionId,
+                        questionPaperPath: path_1.default.resolve(questionPdf),
+                        keyScriptPaths: keyScripts.map(function (ks) { return path_1.default.resolve(ks); }),
+                        studentAnswerPath: path_1.default.resolve(answerScript),
+                        totalMarks: totalMarks,
+                    })];
                 case 1:
-                    _a.trys.push([1, 3, , 4]);
-                    return [4 /*yield*/, evaluateStudentAnswers(questionPaper, keyScripts, studentAnswer, totalMarks)];
-                case 2:
-                    result = _a.sent();
-                    console.log(JSON.stringify(result, null, 2));
-                    return [3 /*break*/, 4];
-                case 3:
-                    error_1 = _a.sent();
-                    console.error('Error:', error_1);
-                    return [3 /*break*/, 4];
-                case 4: return [2 /*return*/];
+                    _c.sent();
+                    console.log("Enqueued AI evaluation for submission ".concat(submissionId));
+                    return [2 /*return*/];
             }
         });
     });
 }
-main().catch(console.error);
+// Keep the worker running
+console.log('AI Evaluation Worker started. Waiting for jobs...');
