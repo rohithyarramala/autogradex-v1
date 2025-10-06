@@ -1,12 +1,11 @@
 'use client';
-
 import { Loading } from '@/components/shared';
 import useOrganizations from 'hooks/useOrganizations';
 import { GetServerSidePropsContext } from 'next';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import { useSession } from 'next-auth/react';
 import type { NextPageWithLayout } from 'types';
-import { useState, useMemo } from 'react';
+import { useState,useEffect, useMemo } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/DataTable';
 
@@ -30,7 +29,34 @@ const Dashboard: NextPageWithLayout = () => {
   const { data: session, status } = useSession();
   const [activeTab, setActiveTab] = useState(0);
 
-  /** =================== Data (always define hooks first) =================== */
+  /** =================== stats =================== */
+  const [stats, setStats] = useState({
+    classes: 0,
+    sections: 0,
+    teachers: 0,
+    students:0,
+    aiEvaluations: 0,
+  });
+
+  // Fetch stats from API
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await fetch('/api/dashboard/stats');
+        const data = await res.json();
+        if (res.ok) {
+          setStats(data.stats);
+        } else {
+          console.error('Failed to fetch stats:', data.error);
+        }
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  /** =================== Data =================== */
   const teacherData: Teacher[] = useMemo(
     () => [
       { name: 'Anjali Sharma', subject: 'Mathematics', classes: 12, students: 320 },
@@ -104,13 +130,15 @@ const Dashboard: NextPageWithLayout = () => {
       </div>
     );
 
-  /** =================== Tabs =================== */
+  /** =================== Tabs (Commented Out) =================== */
+  /*
   const tabs: Record<string, string[]> = {
     ADMIN: ['Overview', 'Teachers', 'Students', 'Reports', 'Settings'],
     TEACHER: ['Classes', 'Evaluations', 'Uploads', 'Results'],
     STUDENT: ['Subjects', 'Assignments', 'Results', 'Progress'],
   };
   const userTabs = tabs[role as keyof typeof tabs] || [];
+  */
 
   /** =================== Render =================== */
   return (
@@ -119,7 +147,8 @@ const Dashboard: NextPageWithLayout = () => {
         Dashboard — {org.name} ({role})
       </h1>
 
-      {/* Tabs */}
+      {/* 
+      =================== Tabs (Commented Out) ===================
       <div className="overflow-x-auto mb-6">
         <div className="flex space-x-2 md:space-x-4 min-w-max">
           {userTabs.map((tab, idx) => (
@@ -137,43 +166,30 @@ const Dashboard: NextPageWithLayout = () => {
           ))}
         </div>
       </div>
+      =============================================================
+      */}
 
-      {/* Tab Content */}
+      {/* Simplified default content (can later switch to tab logic) */}
       <div className="bg-white p-4 md:p-6 rounded-lg shadow">
-        {role === 'ADMIN' && userTabs[activeTab] === 'Overview' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-6">
-            <div className="p-4 bg-blue-50 rounded-lg shadow-sm">
-              <p className="text-sm text-gray-500">Teachers</p>
-              <p className="text-2xl font-bold text-blue-700">42</p>
-            </div>
-            <div className="p-4 bg-green-50 rounded-lg shadow-sm">
-              <p className="text-sm text-gray-500">Students</p>
-              <p className="text-2xl font-bold text-green-700">1,280</p>
-            </div>
-            <div className="p-4 bg-yellow-50 rounded-lg shadow-sm">
-              <p className="text-sm text-gray-500">Active Classes</p>
-              <p className="text-2xl font-bold text-yellow-700">58</p>
-            </div>
-            <div className="p-4 bg-red-50 rounded-lg shadow-sm">
-              <p className="text-sm text-gray-500">Pending Evaluations</p>
-              <p className="text-2xl font-bold text-red-700">14</p>
-            </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-6">
+          <div className="p-4 bg-blue-50 rounded-lg shadow-sm">
+            <p className="text-sm text-gray-500">Teachers</p>
+            <p className="text-2xl font-bold text-blue-700">{stats.teachers}</p>
           </div>
-        )}
-
-        {role === 'ADMIN' && userTabs[activeTab] === 'Teachers' && (
-          <DataTable data={teacherData} columns={teacherColumns} />
-        )}
-
-        {role === 'ADMIN' && userTabs[activeTab] === 'Students' && (
-          <DataTable data={studentData} columns={studentColumns} />
-        )}
-
-        {!(role === 'ADMIN' && ['Overview', 'Teachers', 'Students'].includes(userTabs[activeTab])) && (
-          <p className="text-gray-600">
-            Content for <span className="font-medium">{userTabs[activeTab]}</span> will go here.
-          </p>
-        )}
+          <div className="p-4 bg-green-50 rounded-lg shadow-sm">
+            <p className="text-sm text-gray-500">Classes</p>
+            <p className="text-2xl font-bold text-green-700">{stats.classes}</p>
+          </div>
+          <div className="p-4 bg-yellow-50 rounded-lg shadow-sm">
+            <p className="text-sm text-gray-500">Students</p>
+            <p className="text-2xl font-bold text-yellow-700">{stats.students}</p>
+          </div>
+          <div className="p-4 bg-blue-50 rounded-lg shadow-sm">
+            <p className="text-sm text-gray-500">Pending Evaluations</p>
+            <p className="text-2xl font-bold text-red-700">{stats.aiEvaluations}</p>
+          </div>
+        </div>
+        {/* <DataTable data={teacherData} columns={teacherColumns} /> */}
       </div>
     </div>
   );
