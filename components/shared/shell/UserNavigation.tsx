@@ -40,31 +40,31 @@ const UserNavigation = ({ activePathname, role }: UserNavigationProps) => {
   if (role === 'ADMIN' || role === 'TEACHER') {
     menus.unshift(
       {
-        name: t('classes'),
+        name: t('Classes'),
         href: '/classes',
         icon: BookOpenIcon,
         active: activePathname === '/classes',
       },
       {
-        name: t('sections'),
+        name: t('Sections'),
         href: '/sections',
         icon: RectangleStackIcon,
         active: activePathname === '/sections',
       },
       {
-        name: t('subjects'),
+        name: t('Subjects'),
         href: '/subjects',
         icon: AcademicCapIcon,
         active: activePathname === '/subjects',
       },
       {
-        name: t('students'),
+        name: t('Students'),
         href: '/students',
         icon: UserGroupIcon,
         active: activePathname === '/students',
       },
       {
-        name: t('ai-evaluations'),
+        name: t('AI Evaluations'),
         href: '/ai-evaluations',
         icon: ChartBarIcon,
         active: activePathname === '/ai-evaluations',
@@ -83,7 +83,7 @@ const UserNavigation = ({ activePathname, role }: UserNavigationProps) => {
 
   if (role === 'ADMIN') {
     menus.unshift({
-      name: t('teachers'),
+      name: t('Teachers'),
       href: '/teachers',
       icon: BookOpenIcon,
       active: activePathname === '/teachers',
