@@ -6,8 +6,17 @@ const { withSentryConfig } = require('@sentry/nextjs');
 const nextConfig = {
   reactStrictMode: true,
   ignoreBuildErrors: true,
+  webpack: (config, { isServer }) => {
+    // Ensure dynamic imports are supported
+    config.output.environment = {
+      ...config.output.environment,
+      dynamicImport: true, // Explicitly enable dynamic imports
+    };
+    return config;
+  },
   serverExternalPackages: ['@react-pdf/renderer'],
   images: {
+    domains: ['geniusminds.in'],
     remotePatterns: [
       {
         protocol: 'https',

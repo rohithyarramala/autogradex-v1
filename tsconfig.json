@@ -20,6 +20,7 @@
     "paths": {
       "@/lib/*": ["lib/*"],
       "@/components/*": ["components/*"],
+      "@/styles/*": ["styles/*"],
     },
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "next-auth.d.ts", "pages/ai-evaluations/[evaluationId]"],

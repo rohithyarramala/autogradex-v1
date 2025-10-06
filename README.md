@@ -14,3 +14,9 @@
 
 1. tsc ai-evaluation-worker.ts # now removed
 2. node ai-evaluation-worker.js
+
+
+
+pm2 start ai-evaluation-worker.js --name "ai-evaluation-worker" --watch
+
+pm2 logs ai-evaluation-worker

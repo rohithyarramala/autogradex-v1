@@ -1,26 +1,34 @@
+import { useCallback } from 'react';
 import { useRouter } from 'next/router';
 
-export function useCustomSignOut() {
+export const useCustomSignOut = () => {
   const router = useRouter();
 
-  const signOut = async () => {
+  return useCallback(async () => {
     try {
-      const response = await fetch('/api/auth/custom-signout', {
+      const res = await fetch('/api/auth/custom-signout', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
       });
 
-      if (!response.ok) {
-        throw new Error('Signout failed');
-      }
+      // Try to read server-provided redirect URL
+      const payload =
+        res.headers.get('content-type')?.includes('application/json') &&
+        res.ok
+          ? await res.json().catch(() => null)
+          : null;
+      const redirectUrl = payload?.url || '/auth/login';
 
-      router.push('/auth/login');
-    } catch (error) {
-      console.error('Error during sign out:', error);
+      // Use full-page navigation to ensure cookies cleared and session state resets
+      // Router.replace could be used for SPA nav, but full reload ensures cookies are removed
+      // and any client-side auth caches are cleared.
+      window.location.href = redirectUrl;
+    } catch (err) {
+      // Fallback: ensure we at least navigate to login
+      console.error('Sign out failed, redirecting to login', err);
+      window.location.href = '/auth/login';
     }
-  };
+  }, [router]);
+};
 
-  return signOut;
-}
+export default useCustomSignOut;

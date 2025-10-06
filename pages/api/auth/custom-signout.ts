@@ -42,12 +42,28 @@ export default async function handler(
       }
     }
 
-    res.setHeader(
-      'Set-Cookie',
-      'next-auth.session-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; HttpOnly; Secure; SameSite=Lax'
+    // Clear the session cookie(s). In production we may use a secure prefixed cookie
+    // name (e.g. __Secure-next-auth.session-token). Use the configured cookie name
+    // from `lib/nextAuth.ts` so we clear the exact cookie set during login.
+    const cookieNamesToClear = [sessionTokenCookieName, 'next-auth.session-token'];
+
+    const expires = 'Thu, 01 Jan 1970 00:00:01 GMT';
+    const secureFlag = env.appUrl.startsWith('https://') ? '; Secure' : '';
+
+    // Build multiple Set-Cookie headers to clear each cookie name for compatibility.
+    const setCookieHeaders = cookieNamesToClear.map((name) =>
+      `${name}=; Path=/; Expires=${expires}; HttpOnly; SameSite=Lax${secureFlag}`
     );
 
-    return res.status(200).json({ success: true });
+    // Set all clear-cookie headers
+    res.setHeader('Set-Cookie', setCookieHeaders);
+
+    // Also include a Location header and return the login URL to make client redirects
+    // easier for callers. Client-side hooks can read the json.url and navigate.
+    const redirectUrl = '/auth/login';
+    res.setHeader('Location', redirectUrl);
+
+    return res.status(200).json({ success: true, url: redirectUrl });
   } catch (error) {
     console.error('Signout error:', error);
     return res.status(500).json({ error: 'Failed to sign out' });

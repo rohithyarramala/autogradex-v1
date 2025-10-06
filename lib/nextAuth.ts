@@ -96,6 +96,9 @@ if (isAuthProviderEnabled('credentials')) {
           include: { organizationMember: true },
         });
 
+        // console.log('CREDENTIALS LOGIN ATTEMPT:', { email });
+        // console.log('USER FOUND:', user);
+
         if (!user) {
           throw new Error('invalid-credentials');
         }
