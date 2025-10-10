@@ -21,7 +21,7 @@ const TeamDropdown = () => {
 
   const role = data?.user?.role || 'STUDENT'; // default fallback
 
-  console.log('User Role:', role); // Debugging line to check the role value
+  // console.log('User Role:', role); // Debugging line to check the role value
   const currentTeam = (organizations || []).find(
     (organization) => organization.slug === router.query.slug
   );

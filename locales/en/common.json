@@ -258,10 +258,16 @@
   "go-home": "Go Home",
   "go-back": "Go Back",
   "error-500": "500",
-  "internal-server-error": "Internal Server Error !",
-  "unable-to-find": "We're unable to find out what's happening! We suggest you to",
-  "try-again-later": "or visit here later.",
-  "multiple-sso-organizations": "User belongs to multiple organizations with SSO enabled. Please enter your organization slug to get started.",
-  "organization-name":"Organization Name",
-  "organization": "Organization"
+  "dashboard": "Dashboard",
+  "organisations": "Organisations",
+  "user_management": "User Management",
+  "subscriptions_and_plans": "Subscriptions & Plans",
+  "billing_and_payments": "Billing & Payments",
+  "usage_and_reports": "Usage & Reports",
+  "system_settings": "System Settings",
+  "admin_accounts": "Admin Accounts",
+  "audit_and_logs": "Audit & Logs",
+  "support_and_feedback": "Support & Feedback",
+  "insights": "Insights"
+
 }

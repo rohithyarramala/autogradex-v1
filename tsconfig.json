@@ -21,6 +21,7 @@
       "@/lib/*": ["lib/*"],
       "@/components/*": ["components/*"],
       "@/styles/*": ["styles/*"],
+      "@/models/*": ["models/*"],
     },
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "next-auth.d.ts", "pages/ai-evaluations/[evaluationId]"],

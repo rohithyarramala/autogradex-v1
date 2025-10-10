@@ -22,6 +22,7 @@ export const getStudents = async (organizationId: string) => {
   });
 };
 
+
 export const createStudent = async (data: any, organizationId: string) => {
   // Create user with STUDENT role and enroll in section
   const user = await prisma.user.create({
