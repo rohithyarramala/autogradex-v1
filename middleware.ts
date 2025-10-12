@@ -71,10 +71,15 @@ const unAuthenticatedRoutes = [
   '/unlock-account',
   '/login/saml',
   '/.well-known/*',
+  '/upload/**',
+  '/api/ai-evaluations/student/*',
+  '/logo.png'
 ];
 
 export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+
 
   // Bypass routes that don't require authentication
   if (micromatch.isMatch(pathname, unAuthenticatedRoutes)) {
@@ -94,6 +99,7 @@ export default async function middleware(req: NextRequest) {
       return NextResponse.redirect(redirectUrl);
     }
   }
+
 
   // Database strategy
   else if (env.nextAuth.sessionStrategy === 'database') {

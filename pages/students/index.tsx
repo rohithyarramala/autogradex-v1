@@ -4,6 +4,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/DataTable';
 import Modal from '@/components/shared/Modal';
 import { Button } from 'react-daisyui';
+import { useRouter } from 'next/router';
 
 interface Student {
   id: number;
@@ -18,6 +19,8 @@ interface Student {
 }
 
 const StudentsPage = () => {
+  const router = useRouter();
+
   const { data: session } = useSession();
   const [students, setStudents] = useState<Student[]>([]);
   const [openModal, setOpenModal] = useState(false);
@@ -138,17 +141,36 @@ const StudentsPage = () => {
   };
 
   const columns: ColumnDef<Student>[] = [
-    { accessorKey: 'name', header: 'Student Name' },
-    { accessorKey: 'rollNo', header: 'Roll No' },
-    { accessorKey: 'className', header: 'Class' },
-    { accessorKey: 'section', header: 'Section' },
+    { accessorKey: 'name', header: 'Student Name', enableSorting: true },
+    { accessorKey: 'rollNo', header: 'Roll No', enableSorting: true },
+    { accessorKey: 'className', header: 'Class', enableSorting: true },
+    { accessorKey: 'section', header: 'Section', enableSorting: true },
     {
       id: 'actions',
       header: 'Actions',
       cell: ({ row }) => {
         const student = row.original;
+        const s = row.original;
+        const evaluationId = router.query.id; // assuming you're inside /ai-evaluations/[id] page
+
+        const handleView = () => {
+          
+            window.open(
+              `/students/${s.id}/analytics`,
+              '_blank'
+            );
+          
+        };
         return (
           <div className="flex gap-2">
+            <Button
+              color="primary"
+              size="sm"
+              onClick={handleView}
+              className="text-sm font-semibold"
+            >
+              View
+            </Button>
             <Button
               size="sm"
               color="primary"
@@ -201,53 +223,52 @@ const StudentsPage = () => {
       </div>
 
       <DataTable columns={columns} data={students} />
-   <Modal open={openUploadModal} close={() => setOpenUploadModal(false)}>
-  <Modal.Header>Bulk Upload Students (CSV or Excel)</Modal.Header>
-  <Modal.Body>
-    <input
-      type="file"
-      accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
-      className="w-full border p-2 rounded"
-      onChange={async (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+      <Modal open={openUploadModal} close={() => setOpenUploadModal(false)}>
+        <Modal.Header>Bulk Upload Students (CSV or Excel)</Modal.Header>
+        <Modal.Body>
+          <input
+            type="file"
+            accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+            className="w-full border p-2 rounded"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
 
-        setUploading(true);
-        const formData = new FormData();
-        formData.append("file", file);
+              setUploading(true);
+              const formData = new FormData();
+              formData.append('file', file);
 
-        const res = await fetch("/api/students/bulk-upload", {
-          method: "POST",
-          body: formData,
-        });
+              const res = await fetch('/api/students/bulk-upload', {
+                method: 'POST',
+                body: formData,
+              });
 
-        const data = await res.json();
-        setUploadSummary(data);
-        setUploading(false);
-        fetchStudents();
-      }}
-    />
+              const data = await res.json();
+              setUploadSummary(data);
+              setUploading(false);
+              fetchStudents();
+            }}
+          />
 
-    {uploading && <p className="text-blue-500 mt-3">Uploading...</p>}
+          {uploading && <p className="text-blue-500 mt-3">Uploading...</p>}
 
-    {uploadSummary.success + uploadSummary.failed > 0 && (
-      <div className="mt-4 space-y-2">
-        <p className="text-green-600 font-semibold">
-          ✅ Successfully Uploaded: {uploadSummary.success}
-        </p>
-        <p className="text-red-500 font-semibold">
-          ❌ Failed: {uploadSummary.failed}
-        </p>
-      </div>
-    )}
-  </Modal.Body>
-  <Modal.Footer>
-    <Button color="ghost" onClick={() => setOpenUploadModal(false)}>
-      Close
-    </Button>
-  </Modal.Footer>
-</Modal>
-
+          {uploadSummary.success + uploadSummary.failed > 0 && (
+            <div className="mt-4 space-y-2">
+              <p className="text-green-600 font-semibold">
+                ✅ Successfully Uploaded: {uploadSummary.success}
+              </p>
+              <p className="text-red-500 font-semibold">
+                ❌ Failed: {uploadSummary.failed}
+              </p>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button color="ghost" onClick={() => setOpenUploadModal(false)}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       <Modal open={openModal} close={() => setOpenModal(false)}>
         <Modal.Header>

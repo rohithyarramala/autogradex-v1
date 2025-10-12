@@ -244,7 +244,10 @@ model Evaluation {
   subjectId   String
   createdBy   String
   maxMarks    Int
-  status      String                 @default("pending")
+  status      String                 @default("rubrics-not-generated") // rubrics not generated, upload pending, ready for evaluation, evaluating, evaluated
+  uploadedBy String                 @default("student")
+  rubrics     Json?
+  rubricsGenerated Boolean?
   organizationId String
   org         Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   questionPdf String
@@ -263,7 +266,7 @@ model EvaluationSubmission {
   studentId    String
   scriptPdf    String?
   totalMark    Int?
-  status       String   @default("submitted")
+  status       String   @default("not-uploaded") // not uploaded, uploaded, evaluating, evaluated, failed, skipped
   feedback     String?
   aiResult     Json?
   isAbsent     Boolean  @default(false)
@@ -318,9 +321,7 @@ model EvaluationResult {
   feedback             String?
   createdAt            DateTime             @default(now())
   EvaluationSubmission EvaluationSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-
-  status String @default("submitted")
-
+  // status String @default("submitted")
   @@unique([submissionId, questionNo])
 }
 

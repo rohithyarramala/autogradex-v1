@@ -1,43 +1,75 @@
-// pages/api/analytics/student/[id].ts
-import { NextApiRequest, NextApiResponse } from "next";
+import { NextApiRequest, NextApiResponse } from 'next';
+import { prisma } from '@/lib/prisma';
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { id } = req.query;
+  if (!id || typeof id !== 'string') return res.status(400).json({ error: 'Student ID required' });
 
-  // Fake evaluations for this student
-  const evaluations = Array.from({ length: 5 }).map((_, i) => ({
-    id: i + 1,
-    name: `Evaluation ${i + 1}`,
-    totalMarks: 100,
-    obtainedMarks: Math.floor(Math.random() * 41) + 60, // 60-100
-    date: `2025-10-${i + 1}`
-  }));
+  try {
+    // Fetch student with their evaluation submissions
+    const student = await prisma.user.findUnique({
+      where: { id },
+      include: {
+        EvaluationSubmissions: {
+          include: { evaluation: true },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
 
-  // Weakness analysis: pick 3 random topics/questions the student is weak at
-  const weaknesses = Array.from({ length: 3 }).map((_, i) => ({
-    topic: `Topic ${Math.floor(Math.random() * 10) + 1}`,
-    averageScore: Math.floor(Math.random() * 40) + 30 // 30-70%
-  }));
+    if (!student) return res.status(404).json({ error: 'Student not found' });
 
-  // Rank among class (randomized for example)
-  const rank = Math.floor(Math.random() * 30) + 1;
-  const classSize = 30;
+    const evaluations = student.EvaluationSubmissions.map((s) => ({
+      id: s.evaluationId,
+      name: s.evaluation.name,
+      obtainedMarks: s.totalMark ?? 0,
+      totalMarks: s.evaluation.maxMarks ?? 100,
+      classAverage: 0, // s.evaluation.classAverage ?? 0, // classAverage is not directly available on evaluation object
+      // topics heatmap data
+      heatmap: (s.aiResult as any)?.ai_data?.map((q: any) => ({
+        topic: q.topic || 'General',
+        score: typeof q.marks_awarded === 'number' ? q.marks_awarded : 0,
+        maxMarks: q.marks || 100,
+      })) ?? [],
+    }));
 
-  // Heatmap: evaluations × topics (0=poor, 1=moderate, 2=good)
-  const topics = Array.from({ length: 10 }).map((_, i) => `Topic ${i + 1}`);
-  const heatmap = evaluations.map((e) => ({
-    evaluation: e.name,
-    scores: topics.map(() => Math.floor(Math.random() * 3)) // 0,1,2
-  }));
+    const avgScore =
+      evaluations.reduce((a, e) => a + e.obtainedMarks, 0) / (evaluations.length || 1);
+    const highestScore = Math.max(...evaluations.map((e) => e.obtainedMarks));
+    const lowestScore = Math.min(...evaluations.map((e) => e.obtainedMarks));
+    const consistency = `${Math.round(
+      (1 - (highestScore - lowestScore) / (evaluations[0]?.totalMarks || 100)) * 100
+    )}%`;
 
-  res.status(200).json({
-    studentId: id,
-    studentName: `Student ${id}`,
-    evaluations,
-    rank,
-    classSize,
-    weaknesses,
-    topics,
-    heatmap
-  });
+    // Combine topics for heatmap
+    const topics = Array.from(
+      new Set(evaluations.flatMap((e) => e.heatmap.map((t) => t.topic)))
+    );
+    const heatmap = evaluations.map((e) => ({
+      evaluation: e.name,
+      scores: topics.map((t) => {
+        const topic = e.heatmap.find((h) => h.topic === t);
+        return topic ? Math.round((topic.score / topic.maxMarks) * 100) : 0;
+      }),
+    }));
+
+    res.status(200).json({
+      studentId: id,
+      studentName: student.name,
+      avgScore: Math.round(avgScore),
+      highestScore,
+      lowestScore,
+      consistency,
+      rank: 0, // optional: compute if needed
+      classSize: 0,
+      evaluations,
+      topics,
+      heatmap,
+      weaknesses: [], // optional, can add topic-wise low scores
+      grades: {}, // optional grade distribution
+    });
+  } catch (err: any) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
 }

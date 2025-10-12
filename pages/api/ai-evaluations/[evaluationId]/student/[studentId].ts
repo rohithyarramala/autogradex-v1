@@ -42,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (isAbsent) {
           updateData = { status: 'absent', isAbsent: true };
         } else {
-          updateData = { status: 'submitted', isAbsent: false, scriptPdf: null };
+          updateData = { status: 'uploaded', isAbsent: false, scriptPdf: null };
         }
         const updated = await prisma.evaluationSubmission.update({
           where: { id: submission.id },

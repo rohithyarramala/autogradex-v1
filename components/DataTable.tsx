@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/20/solid';
-
 import {
   useReactTable,
   getCoreRowModel,
@@ -11,31 +10,34 @@ import {
   getPaginationRowModel,
   ColumnDef,
   flexRender,
+  SortingState,
 } from '@tanstack/react-table';
 
 interface DataTableProps<T> {
   data: T[];
-  columns: ColumnDef<T>[];
+  columns: ColumnDef<T, any>[];
 }
 
 export function DataTable<T>({ data, columns }: DataTableProps<T>) {
-  const [sorting, setSorting] = useState([]);
+  const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
 
   const table = useReactTable({
     data,
     columns,
     state: { sorting, globalFilter },
+    onSortingChange: setSorting, // ✅ crucial line
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    debugTable: false,
   });
 
   return (
     <div>
-      {/* Global Search */}
+      {/* 🔍 Global Search */}
       <div className="mb-4">
         <input
           type="text"
@@ -46,30 +48,37 @@ export function DataTable<T>({ data, columns }: DataTableProps<T>) {
         />
       </div>
 
-      {/* Table */}
+      {/* 🧾 Table */}
       <div className="overflow-x-auto">
         <table className="min-w-full border border-gray-200 divide-y divide-gray-200">
           <thead className="bg-gray-50">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    className="px-4 py-2 text-left text-sm font-medium text-gray-600 cursor-pointer select-none"
-                    onClick={header.column.getToggleSortingHandler()}
-                  >
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
-                    {header.column.getIsSorted() === 'asc' && (
-                      <ArrowUpIcon className="w-4 h-4 inline-block ml-1 text-gray-500" />
-                    )}
-                    {header.column.getIsSorted() === 'desc' && (
-                      <ArrowDownIcon className="w-4 h-4 inline-block ml-1 text-gray-500" />
-                    )}
-                  </th>
-                ))}
+                {headerGroup.headers.map((header) => {
+                  const canSort = header.column.getCanSort();
+                  return (
+                    <th
+                      key={header.id}
+                      className={`px-4 py-2 text-left text-sm font-medium text-gray-600 ${
+                        canSort ? 'cursor-pointer select-none' : ''
+                      }`}
+                      onClick={
+                        canSort ? header.column.getToggleSortingHandler() : undefined
+                      }
+                    >
+                      {flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                      {header.column.getIsSorted() === 'asc' && (
+                        <ArrowUpIcon className="w-4 h-4 inline-block ml-1 text-gray-500" />
+                      )}
+                      {header.column.getIsSorted() === 'desc' && (
+                        <ArrowDownIcon className="w-4 h-4 inline-block ml-1 text-gray-500" />
+                      )}
+                    </th>
+                  );
+                })}
               </tr>
             ))}
           </thead>
@@ -87,7 +96,7 @@ export function DataTable<T>({ data, columns }: DataTableProps<T>) {
         </table>
       </div>
 
-      {/* Pagination */}
+      {/* 📄 Pagination */}
       <div className="flex items-center justify-between mt-4">
         <div className="flex gap-2 items-center">
           <button
@@ -106,8 +115,7 @@ export function DataTable<T>({ data, columns }: DataTableProps<T>) {
           </button>
         </div>
         <span className="text-sm text-gray-500">
-          Page {table.getState().pagination.pageIndex + 1} of{' '}
-          {table.getPageCount()}
+          Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
         </span>
       </div>
     </div>

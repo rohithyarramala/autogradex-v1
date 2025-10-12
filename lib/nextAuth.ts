@@ -412,7 +412,6 @@ export const getAuthOptions = (
             maxLengthPolicies.name
           );
         }
-        // console.log('SESSION:', session);
         return session;
       },
 

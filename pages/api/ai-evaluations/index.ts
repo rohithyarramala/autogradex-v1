@@ -4,6 +4,8 @@ import formidable from 'formidable';
 import fs from 'fs/promises';
 import path from 'path';
 import { getSession } from '@/lib/session';
+import { enqueueRubricsCreationJob } from '@/lib/ai-evaluation-queue';
+
 
 export const config = {
   api: {
@@ -87,8 +89,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           maxMarks: Number(fields.maxMarks),
           questionPdf: resolveUploadedFileUrl(files.questionPaper),
           answerKey: resolveUploadedFileUrl(files.keyScript),
-          status: 'pending',
+          status: 'not-started',
           organizationId: organizationId || '',
+          uploadedBy:Array.isArray(fields.uploadedBy) ? fields.uploadedBy[0] : fields.uploadedBy,
           createdBy: Array.isArray(fields.createdBy) ? fields.createdBy[0] : fields.createdBy,
         };
 
@@ -117,7 +120,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         // Create submissions for enrolled students
         const enrollments = await prisma.studentEnrollment.findMany({
-          where: { sectionId: evaluationData.sectionId },
+          where: { sectionId: evaluationData.sectionId,classId:evaluationData.classId },
           include: { student: true },
         });
 
@@ -126,12 +129,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             data: {
               evaluationId: evaluation.id,
               studentId: enrollment.studentId,
-              status: 'submitted',
+              status: 'not-uploaded',
               isAbsent: false,
             },
           })
         ));
 
+        enqueueRubricsCreationJob(evaluation.id);
+        
         return res.status(201).json({ ...evaluation, submissions });
       }
 

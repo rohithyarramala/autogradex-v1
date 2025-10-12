@@ -60,7 +60,7 @@ export default async function handler(
 
     // Also include a Location header and return the login URL to make client redirects
     // easier for callers. Client-side hooks can read the json.url and navigate.
-    const redirectUrl = '/auth/login';
+    const redirectUrl = '/auth/loginn';
     res.setHeader('Location', redirectUrl);
 
     return res.status(200).json({ success: true, url: redirectUrl });

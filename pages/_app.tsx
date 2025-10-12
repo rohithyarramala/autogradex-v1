@@ -18,7 +18,7 @@ import { AccountLayout } from '@/components/layouts';
 function MyApp({ Component, pageProps }: AppPropsWithLayout) {
   const { session, ...props } = pageProps;
 
-  // Add mixpanel
+  // Mixpanel + theme
   useEffect(() => {
     if (env.mixpanel.token) {
       mixpanel.init(env.mixpanel.token, {
@@ -33,17 +33,26 @@ function MyApp({ Component, pageProps }: AppPropsWithLayout) {
     }
   }, []);
 
+  // Determine layout
   const getLayout =
-    Component.getLayout || ((page) => <AccountLayout>{page}</AccountLayout>);
+    Component.getLayout ||
+    ((page) =>
+      (Component as any).publicPage ? (
+        page
+      ) : (
+        <AccountLayout>{page}</AccountLayout>
+      ));
 
   return (
     <>
       <Head>
         <title>{app.name}</title>
-        <link rel="icon" href="https://boxyhq.com/img/favicon.ico" />
+        <link rel="icon" href="/logo.png" />
       </Head>
-      <SessionProvider session={session}>
+
+      <SessionProvider session={session} refetchInterval={0}>
         <Toaster toastOptions={{ duration: 4000 }} />
+
         <Themer
           overrideTheme={{
             '--primary-color': colors.blue['500'],

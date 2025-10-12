@@ -45,11 +45,9 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     return to.concat(ar || Array.prototype.slice.call(from));
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.aiEvaluationQueue = void 0;
-exports.enqueueAiEvaluation = enqueueAiEvaluation;
 var bullmq_1 = require("bullmq");
 var genai_1 = require("@google/genai");
-var prisma_1 = require("./lib/prisma");
+var prisma_1 = require("./lib/prisma"); // Adjust path to your prisma instance
 var path = require("path");
 require("dotenv/config");
 // Redis connection configuration
@@ -59,8 +57,43 @@ var connection = {
 };
 // Initialize Google GenAI
 var genAI = new genai_1.GoogleGenAI({});
-// Define the structured schema for the evaluation output
+// ----------------------------------------------------------------------
+// 1. SCHEMAS AND INTERFACES
+// ----------------------------------------------------------------------
+// Schema for Rubrics Output (Question-wise marking scheme)
+var rubricsSchema = {
+    type: genai_1.Type.OBJECT,
+    properties: {
+        rubrics: {
+            type: genai_1.Type.ARRAY,
+            items: {
+                type: genai_1.Type.OBJECT,
+                properties: {
+                    question_id: { type: genai_1.Type.STRING },
+                    question: { type: genai_1.Type.STRING },
+                    section: { type: genai_1.Type.STRING },
+                    marks: { type: genai_1.Type.INTEGER },
+                    key_points: {
+                        type: genai_1.Type.ARRAY,
+                        items: { type: genai_1.Type.STRING },
+                    },
+                    difficulty: { type: genai_1.Type.STRING },
+                    blooms_level: { type: genai_1.Type.STRING },
+                    topic: { type: genai_1.Type.STRING },
+                    co: { type: genai_1.Type.STRING },
+                    po: { type: genai_1.Type.STRING },
+                    pso: { type: genai_1.Type.STRING },
+                },
+                required: ['question_id', 'question', 'section', 'marks', 'key_points'],
+            },
+        },
+        exam_total_marks: { type: genai_1.Type.INTEGER },
+    },
+    required: ['rubrics', 'exam_total_marks'],
+};
+// Schema for Student Evaluation Output (Provided in prompt - kept as is)
 var evaluationSchema = {
+    /* ... (The extensive evaluationSchema from the prompt) ... */
     type: genai_1.Type.OBJECT,
     properties: {
         ai_data: {
@@ -122,21 +155,26 @@ var evaluationSchema = {
     required: ['ai_data', 'totalMarkAwarded', 'totalMarks'],
     propertyOrdering: ['ai_data', 'totalMarkAwarded', 'totalMarks'],
 };
-// Helper: safe file path conversion
+// ----------------------------------------------------------------------
+// 2. FILE HELPERS
+// ----------------------------------------------------------------------
+// Helper: safe file path conversion (Kept as is)
 var toUploadsPath = function (file) {
     if (!file || typeof file !== 'string')
         return '';
     var cleanFile = file.replace(/^\/?api\/pdf\//, '');
-    // Absolute path to avoid worker issues
     return path.join(process.cwd(), 'uploads', 'pdfs', cleanFile);
 };
-// Function to upload a file and return its URI and MIME type
+// Function to upload a file and return its URI and MIME type (Kept as is)
 function uploadFile(filePath, mimeType) {
     return __awaiter(this, void 0, void 0, function () {
         var myfile;
         return __generator(this, function (_a) {
             switch (_a.label) {
-                case 0: return [4 /*yield*/, genAI.files.upload({ file: filePath, config: { mimeType: mimeType } })];
+                case 0: return [4 /*yield*/, genAI.files.upload({
+                        file: filePath,
+                        config: { mimeType: mimeType },
+                    })];
                 case 1:
                     myfile = _a.sent();
                     return [2 /*return*/, myfile];
@@ -144,7 +182,7 @@ function uploadFile(filePath, mimeType) {
         });
     });
 }
-// Function to delete a file
+// Function to delete a file (Kept as is)
 function deleteFile(fileUri) {
     return __awaiter(this, void 0, void 0, function () {
         return __generator(this, function (_a) {
@@ -160,84 +198,242 @@ function deleteFile(fileUri) {
         });
     });
 }
-// Function to evaluate student answers
-function evaluateStudentAnswers(questionPaperPath_1) {
-    return __awaiter(this, arguments, void 0, function (questionPaperPath, keyScriptPaths, studentAnswerPath, totalMarks) {
-        var questionPaper, keyScripts, studentAnswer, contents, response, evaluation;
-        if (keyScriptPaths === void 0) { keyScriptPaths = []; }
+// ----------------------------------------------------------------------
+// 3. CORE AI FUNCTIONS
+// ----------------------------------------------------------------------
+/**
+ * AI function to generate the question-wise rubrics JSON.
+ */
+function generateRubrics(questionPaperPath, keyScriptPaths, totalMarks) {
+    return __awaiter(this, void 0, void 0, function () {
+        var questionPaper, keyScripts, contents, response;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
-                    if (!questionPaperPath || !studentAnswerPath) {
-                        throw new Error('Missing required file paths for evaluation');
-                    }
-                    console.log('Uploading question paper:', questionPaperPath);
+                    if (!questionPaperPath)
+                        throw new Error('Missing question paper path.');
+                    console.log('Uploading question paper for rubrics:', questionPaperPath);
                     return [4 /*yield*/, uploadFile(questionPaperPath, 'application/pdf')];
                 case 1:
                     questionPaper = _a.sent();
                     return [4 /*yield*/, Promise.all(keyScriptPaths.map(function (ks) { return uploadFile(ks, 'application/pdf'); }))];
                 case 2:
                     keyScripts = _a.sent();
-                    return [4 /*yield*/, uploadFile(studentAnswerPath, 'application/pdf')];
-                case 3:
-                    studentAnswer = _a.sent();
                     contents = {
                         role: 'user',
                         parts: __spreadArray(__spreadArray([
-                            { fileData: { fileUri: questionPaper.uri, mimeType: questionPaper.mimeType } }
-                        ], keyScripts.map(function (ks) { return ({ fileData: { fileUri: ks.uri, mimeType: ks.mimeType } }); }), true), [
-                            { fileData: { fileUri: studentAnswer.uri, mimeType: studentAnswer.mimeType } },
                             {
-                                text: "\nGOAL: Fully evaluate the Student Answer Script against the Question Paper and Key Scripts, generating a final output that is strictly a single JSON object following the defined schema.\n\nINPUT REQUIREMENTS:\n\nQuestion Paper, Student Answer Script (PDF with page indexing), Key Scripts, and the total marks for the exam (".concat(totalMarks, ").\n\nEVALUATION RULES (Lenient/Favorable Marking):\n\nMarking Standard: Adopt a lenient and favorable marking policy (\"in favorision only not much strict\"). Award partial credit generously based on demonstrated effort and understanding.\n\nExtraction: Extract and include ALL questions from the Question Paper in the output, regardless of whether they were attempted.\n\nReferencing: Accurately match each question to the student's answer using the specific image_index (PDF page reference/s).\n\nFEEDBACK & SCORING PROTOCOL:\n\nAttempted Questions: Provide detailed, specific feedback on the content. Do not state \"Not Attempted.\"\n\nUnattempted Questions:\n\nSet the marks_awarded to 0.\n\nThe feedback must explicitly state \"Not Attempted\" or \"Strike Off.\"\n\nREQUIRED METADATA & FINAL CALCULATION:\n\nAI Confidence: Set AI_Conficence to a value between 0 and 100, reflecting the certainty of the evaluation.\n\nIntervention Flag: Set teacher_intervention_required to true if there is any doubt regarding the correctness of the answer or the assigned marks.\n\nFinal Tally: Calculate totalMarkAwarded as the precise sum of all individual marks_awarded.\n\nOUTPUT CONSTRAINT: Verify the accuracy of all questions and awarded marks. The final output must be strictly in JSON format without any additional introductory or concluding text.\n"),
+                                fileData: {
+                                    fileUri: questionPaper.uri,
+                                    mimeType: questionPaper.mimeType,
+                                },
+                            }
+                        ], keyScripts.map(function (ks) { return ({
+                            fileData: { fileUri: ks.uri, mimeType: ks.mimeType },
+                        }); }), true), [
+                            {
+                                text: "\nGOAL: Analyze the Question Paper (and optional Key Scripts) to generate a detailed, question-wise marking scheme (rubric). Output must STRICTLY follow the JSON schema provided.\n\nINPUTS: Question Paper, Key Scripts, and total exam marks (".concat(totalMarks, ").\n\nANALYSIS:\n1. Extract ALL questions and their max marks.\n2. For each question, list essential 'key_points' required for a full-mark answer.\n3. Estimate Difficulty, Bloom's Level, Topic, CO, PO, and PSO if not explicit.\n\nOUTPUT CONSTRAINT: Strictly JSON format, no preamble/postamble text.\n"),
                             },
                         ], false),
                     };
+                    _a.label = 3;
+                case 3:
+                    _a.trys.push([3, , 5, 7]);
                     return [4 /*yield*/, genAI.models.generateContent({
-                            model: 'gemini-2.0-flash',
+                            model: 'gemini-2.5-pro', // Pro model for complex reasoning tasks like rubrics
                             contents: [contents],
-                            config: { responseMimeType: 'application/json', responseSchema: evaluationSchema },
+                            config: {
+                                responseMimeType: 'application/json',
+                                responseSchema: rubricsSchema,
+                            },
                         })];
                 case 4:
                     response = _a.sent();
-                    evaluation = JSON.parse(response.text);
-                    return [4 /*yield*/, Promise.all(__spreadArray(__spreadArray([deleteFile(questionPaper)], keyScripts.map(deleteFile), true), [deleteFile(studentAnswer)], false))];
-                case 5:
+                    console.log(response);
+                    return [2 /*return*/, JSON.parse(response.text)];
+                case 5: return [4 /*yield*/, Promise.all(__spreadArray([
+                        deleteFile(questionPaper)
+                    ], keyScripts.map(deleteFile), true))];
+                case 6:
                     _a.sent();
-                    return [2 /*return*/, evaluation];
+                    return [7 /*endfinally*/];
+                case 7: return [2 /*return*/];
             }
         });
     });
 }
-// Create the BullMQ queue
-exports.aiEvaluationQueue = new bullmq_1.Queue('ai-evaluation', { connection: connection });
-// Create the BullMQ worker
-var worker = new bullmq_1.Worker('ai-evaluation', function (job) { return __awaiter(void 0, void 0, void 0, function () {
-    var _a, evaluationId, submissionId, evaluation, submission, questionPaperPath, keyScriptPaths, studentAnswerPath, totalMarks, result, submissions, allEvaluated, error_1;
+/**
+ * AI function to evaluate student answers using pre-generated rubrics.
+ */
+function evaluateStudentAnswers(rubricsJson, questionPaperPath, studentAnswerPath, totalMarks) {
+    return __awaiter(this, void 0, void 0, function () {
+        var questionPaper, studentAnswer, contents, response;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    if (!questionPaperPath || !studentAnswerPath)
+                        throw new Error('Missing file paths for evaluation');
+                    console.log('Uploading files for student scoring...');
+                    return [4 /*yield*/, uploadFile(questionPaperPath, 'application/pdf')];
+                case 1:
+                    questionPaper = _a.sent();
+                    return [4 /*yield*/, uploadFile(studentAnswerPath, 'application/pdf')];
+                case 2:
+                    studentAnswer = _a.sent();
+                    contents = {
+                        role: 'user',
+                        parts: [
+                            {
+                                fileData: {
+                                    fileUri: questionPaper.uri,
+                                    mimeType: questionPaper.mimeType,
+                                },
+                            },
+                            {
+                                fileData: {
+                                    fileUri: studentAnswer.uri,
+                                    mimeType: studentAnswer.mimeType,
+                                },
+                            },
+                            // Send the generated rubrics as a JSON string
+                            { text: "Pre-Generated Rubrics (JSON): ".concat(JSON.stringify(rubricsJson)) },
+                            {
+                                text: "\nGOAL: Evaluate the Student Answer Script against the Question Paper and the provided Pre-Generated Rubrics (Marking Scheme JSON). Output must STRICTLY follow the JSON schema provided.\n\nEVALUATION RULES (Lenient Marking):\n1. Score strictly based on the 'key_points' in the Rubrics JSON.\n2. Award partial credit generously.\n3. Mark ALL questions (attempted or unattempted).\n4. ai_confidence need to be betweeen 20% to 100%.\n5. image_index from 0 to length of pdf of student script, # please match the question id need to be in image index ( pdf page number ) # make attention here.\n\nFEEDBACK & SCORING:\n- Attempted: Provide detailed feedback. Populate the 'marking_scheme' array based on covered 'key_points'.\n- Unattempted: Set marks_awarded to 0. Feedback must state \"Not Attempted\" or \"Strike Off.\"\n\nMETADATA: Calculate totalMarkAwarded. Set AI_Confidence and teacher_intervention_required as per doubt.\n\nOUTPUT CONSTRAINT: Strictly JSON format, no preamble/postamble text.\n",
+                            },
+                        ],
+                    };
+                    _a.label = 3;
+                case 3:
+                    _a.trys.push([3, , 5, 7]);
+                    return [4 /*yield*/, genAI.models.generateContent({
+                            model: 'gemini-2.5-flash', // Flash model is sufficient for scoring based on a provided rubric
+                            contents: [contents],
+                            config: {
+                                responseMimeType: 'application/json',
+                                responseSchema: evaluationSchema,
+                            },
+                        })];
+                case 4:
+                    response = _a.sent();
+                    return [2 /*return*/, JSON.parse(response.text)];
+                case 5: return [4 /*yield*/, Promise.all([deleteFile(questionPaper), deleteFile(studentAnswer)])];
+                case 6:
+                    _a.sent();
+                    return [7 /*endfinally*/];
+                case 7: return [2 /*return*/];
+            }
+        });
+    });
+}
+// ----------------------------------------------------------------------
+// 4. WORKER DEFINITIONS
+// ----------------------------------------------------------------------
+// A. RUBRICS WORKER (Job 1)
+var rubricsWorker = new bullmq_1.Worker('rubrics-creation', function (job) { return __awaiter(void 0, void 0, void 0, function () {
+    var evaluationId, evaluation, questionPaperPath, keyScriptPaths, totalMarks, rubricsResult, error_1;
+    return __generator(this, function (_a) {
+        switch (_a.label) {
+            case 0:
+                console.log("[RUBRICS] Processing job ".concat(job.id, " for evaluation ").concat(job.data.evaluationId));
+                evaluationId = job.data.evaluationId;
+                _a.label = 1;
+            case 1:
+                _a.trys.push([1, 5, , 7]);
+                return [4 /*yield*/, prisma_1.prisma.evaluation.findUnique({
+                        where: { id: evaluationId },
+                    })];
+            case 2:
+                evaluation = _a.sent();
+                if (!evaluation)
+                    throw new Error("Evaluation ".concat(evaluationId, " not found"));
+                questionPaperPath = toUploadsPath(evaluation.questionPdf);
+                keyScriptPaths = evaluation.answerKey
+                    ? [toUploadsPath(evaluation.answerKey)]
+                    : [];
+                totalMarks = evaluation.maxMarks;
+                if (!questionPaperPath)
+                    throw new Error('Question Paper not found for rubrics generation.');
+                return [4 /*yield*/, generateRubrics(questionPaperPath, keyScriptPaths, totalMarks)];
+            case 3:
+                rubricsResult = _a.sent();
+                // 2. Save Rubrics to DB and update status
+                return [4 /*yield*/, prisma_1.prisma.evaluation.update({
+                        where: { id: evaluationId },
+                        data: {
+                            rubrics: rubricsResult, // Save the generated JSON rubrics
+                            rubricsGenerated: true,
+                            status: 'upload-pending', // Signal that scoring can begin
+                        },
+                    })];
+            case 4:
+                // 2. Save Rubrics to DB and update status
+                _a.sent();
+                // 3. Enqueue the individual evaluation jobs (Job Chaining)
+                // await enqueueEvaluationJob(evaluationId);
+                console.log("[RUBRICS] Generated, saved, and scoring jobs enqueued for ".concat(evaluationId));
+                return [2 /*return*/, rubricsResult];
+            case 5:
+                error_1 = _a.sent();
+                console.error("[RUBRICS] Error processing job ".concat(job.id, ":"), error_1);
+                // Fail status for manual review
+                return [4 /*yield*/, prisma_1.prisma.evaluation.update({
+                        where: { id: evaluationId },
+                        data: { status: 'rubrics-failed' },
+                    })];
+            case 6:
+                // Fail status for manual review
+                _a.sent();
+                throw error_1;
+            case 7: return [2 /*return*/];
+        }
+    });
+}); }, { connection: connection });
+// B. AI EVALUATION WORKER (Job 2)
+var aiEvaluationWorker = new bullmq_1.Worker('ai-evaluation', function (job) { return __awaiter(void 0, void 0, void 0, function () {
+    var _a, evaluationId, submissionId, evaluation, submission, questionPaperPath, studentAnswerPath, rubricsJson, totalMarks, result, pendingCount, error_2;
     var _b, _c, _d;
     return __generator(this, function (_e) {
         switch (_e.label) {
             case 0:
-                console.log("Processing job ".concat(job.id, " for submission ").concat(job.data));
-                console.log('Job data:', job.data);
+                console.log("[EVAL] Processing job ".concat(job.id, " for submission ").concat(job.data.submissionId));
                 _a = job.data, evaluationId = _a.evaluationId, submissionId = _a.submissionId;
                 _e.label = 1;
             case 1:
-                _e.trys.push([1, 10, , 11]);
-                return [4 /*yield*/, prisma_1.prisma.evaluation.findUnique({ where: { id: evaluationId } })];
+                _e.trys.push([1, 12, , 14]);
+                return [4 /*yield*/, prisma_1.prisma.evaluation.findUnique({
+                        where: { id: evaluationId },
+                    })];
             case 2:
                 evaluation = _e.sent();
-                return [4 /*yield*/, prisma_1.prisma.evaluationSubmission.findUnique({ where: { id: submissionId } })];
+                return [4 /*yield*/, prisma_1.prisma.evaluationSubmission.findUnique({
+                        where: { id: submissionId },
+                    })];
             case 3:
                 submission = _e.sent();
-                questionPaperPath = toUploadsPath(evaluation === null || evaluation === void 0 ? void 0 : evaluation.questionPdf);
-                keyScriptPaths = (evaluation === null || evaluation === void 0 ? void 0 : evaluation.answerKey) ? [toUploadsPath(evaluation.answerKey)] : [];
-                studentAnswerPath = toUploadsPath(submission === null || submission === void 0 ? void 0 : submission.scriptPdf);
-                totalMarks = (_b = evaluation === null || evaluation === void 0 ? void 0 : evaluation.maxMarks) !== null && _b !== void 0 ? _b : 0;
-                if (!questionPaperPath || !studentAnswerPath)
-                    throw new Error('Missing file paths for evaluation');
-                return [4 /*yield*/, evaluateStudentAnswers(questionPaperPath, keyScriptPaths, studentAnswerPath, totalMarks)];
+                // === Pre-checks ===
+                if (!evaluation || !submission)
+                    throw new Error('Evaluation or Submission not found.');
+                if (!evaluation.rubricsGenerated || !evaluation.rubrics) {
+                    throw new Error('Rubrics not ready. This job should not have started.');
+                }
+                if (!(submission.status === 'absent')) return [3 /*break*/, 5];
+                console.log("[EVAL] Skipping submission ".concat(submissionId, " (absent)."));
+                return [4 /*yield*/, prisma_1.prisma.evaluationSubmission.update({
+                        where: { id: submissionId },
+                        data: { status: 'skipped' },
+                    })];
             case 4:
+                _e.sent();
+                return [3 /*break*/, 8];
+            case 5:
+                questionPaperPath = toUploadsPath(evaluation.questionPdf);
+                studentAnswerPath = toUploadsPath(submission.scriptPdf);
+                rubricsJson = evaluation.rubrics;
+                totalMarks = (_b = evaluation.maxMarks) !== null && _b !== void 0 ? _b : 0;
+                return [4 /*yield*/, evaluateStudentAnswers(rubricsJson, questionPaperPath, studentAnswerPath, totalMarks)];
+            case 6:
                 result = _e.sent();
+                // 2️⃣ Update Submission in DB
                 return [4 /*yield*/, prisma_1.prisma.evaluationSubmission.update({
                         where: { id: submissionId },
                         data: {
@@ -247,63 +443,56 @@ var worker = new bullmq_1.Worker('ai-evaluation', function (job) { return __awai
                             status: 'evaluated',
                         },
                     })];
-            case 5:
+            case 7:
+                // 2️⃣ Update Submission in DB
                 _e.sent();
-                return [4 /*yield*/, prisma_1.prisma.evaluationSubmission.findMany({
-                        where: { evaluationId: evaluationId },
-                    })];
-            case 6:
-                submissions = _e.sent();
-                allEvaluated = submissions.every(function (sub) { return sub.status === 'evaluated'; });
-                if (!allEvaluated) return [3 /*break*/, 8];
-                // Update the evaluation status to 'evaluated'
+                console.log("[EVAL] Evaluated submission ".concat(submissionId));
+                _e.label = 8;
+            case 8: return [4 /*yield*/, prisma_1.prisma.evaluationSubmission.count({
+                    where: {
+                        evaluationId: evaluationId,
+                        status: { notIn: ['evaluated', 'skipped', 'absent'] },
+                    },
+                })];
+            case 9:
+                pendingCount = _e.sent();
+                if (!(pendingCount === 0)) return [3 /*break*/, 11];
                 return [4 /*yield*/, prisma_1.prisma.evaluation.update({
                         where: { id: evaluationId },
                         data: { status: 'evaluated' },
                     })];
-            case 7:
-                // Update the evaluation status to 'evaluated'
-                _e.sent();
-                console.log("Evaluation ".concat(evaluationId, " status updated to 'evaluated'"));
-                return [3 /*break*/, 9];
-            case 8:
-                console.log("Evaluation ".concat(evaluationId, " has pending submissions; status not updated"));
-                _e.label = 9;
-            case 9:
-                console.log("Processed AI evaluation for submission ".concat(submissionId));
-                return [2 /*return*/, result];
             case 10:
-                error_1 = _e.sent();
-                console.error("Error processing job ".concat(job.id, " for submission ").concat(submissionId, ":"), error_1);
-                throw error_1;
-            case 11: return [2 /*return*/];
+                _e.sent();
+                console.log("[EVAL] \u2705 Final evaluation ".concat(evaluationId, " marked as evaluated."));
+                _e.label = 11;
+            case 11: return [2 /*return*/, { success: true }];
+            case 12:
+                error_2 = _e.sent();
+                console.error("[EVAL] \u274C Error processing job ".concat(job.id, ":"), error_2);
+                // ❗ Set submission to failed only if not absent
+                return [4 /*yield*/, prisma_1.prisma.evaluationSubmission.update({
+                        where: { id: submissionId },
+                        data: { status: 'failed' },
+                    })];
+            case 13:
+                // ❗ Set submission to failed only if not absent
+                _e.sent();
+                throw error_2;
+            case 14: return [2 /*return*/];
         }
     });
 }); }, { connection: connection });
-// Worker events
-worker.on('completed', function (job) { return console.log("Job ".concat(job.id, " completed")); });
-worker.on('failed', function (job, err) { return console.error("Job ".concat(job === null || job === void 0 ? void 0 : job.id, " failed:"), err); });
-// Function to add a job to the queue
-function enqueueAiEvaluation(_a) {
-    return __awaiter(this, arguments, void 0, function (_b) {
-        var evaluationId = _b.evaluationId, studentId = _b.studentId, submissionId = _b.submissionId, questionPdf = _b.questionPdf, keyScripts = _b.keyScripts, answerScript = _b.answerScript, totalMarks = _b.totalMarks;
-        return __generator(this, function (_c) {
-            switch (_c.label) {
-                case 0: return [4 /*yield*/, exports.aiEvaluationQueue.add('evaluate', {
-                        evaluationId: evaluationId,
-                        studentId: studentId,
-                        submissionId: submissionId,
-                        questionPaperPath: path.resolve(questionPdf),
-                        keyScriptPaths: keyScripts.map(function (ks) { return path.resolve(ks); }),
-                        studentAnswerPath: path.resolve(answerScript),
-                        totalMarks: totalMarks,
-                    })];
-                case 1:
-                    _c.sent();
-                    console.log("Enqueued AI evaluation for submission ".concat(submissionId));
-                    return [2 /*return*/];
-            }
-        });
-    });
-}
-console.log('AI Evaluation Worker started. Waiting for jobs...');
+// Worker events (Kept as is)
+rubricsWorker.on('completed', function (job) {
+    return console.log("[RUBRICS] Job ".concat(job.id, " completed"));
+});
+rubricsWorker.on('failed', function (job, err) {
+    return console.error("[RUBRICS] Job ".concat(job === null || job === void 0 ? void 0 : job.id, " failed:"), err);
+});
+aiEvaluationWorker.on('completed', function (job) {
+    return console.log("[EVAL] Job ".concat(job.id, " completed"));
+});
+aiEvaluationWorker.on('failed', function (job, err) {
+    return console.error("[EVAL] Job ".concat(job === null || job === void 0 ? void 0 : job.id, " failed:"), err);
+});
+console.log('AI Evaluation Workers started. Waiting for jobs...');

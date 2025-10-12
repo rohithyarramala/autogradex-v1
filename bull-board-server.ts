@@ -7,11 +7,13 @@ import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 const app = express();
 const aiQueue = new Queue('ai-evaluation', { connection: { host: 'localhost', port: 6379 } });
 
+const rubricsQueue = new Queue('rubrics-creation', { connection: { host: 'localhost', port: 6379 } });
+
 const serverAdapter = new ExpressAdapter();
 serverAdapter.setBasePath('/admin/queues');
 
 createBullBoard({
-  queues: [new BullMQAdapter(aiQueue)],
+  queues: [new BullMQAdapter(aiQueue),new BullMQAdapter(rubricsQueue)],
   serverAdapter,
 });
 
