@@ -510,7 +510,7 @@ const StudentEvaluationPage = () => {
             </Button>
           </div>
           <div
-            className="border p-4 bg-gray-100 rounded-md shadow-inner h-[calc(100vh-200px)] overflow-hidden"
+            className="border p-2 bg-gray-100 rounded-md shadow-inner h-full overflow-hidden"
             style={{ borderColor: 'var(--border-color)' }}
           >
             {getContent}
