@@ -17,6 +17,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Cannot update rubric after evaluation started' });
     }
 
+    console.log(rubric);
+
     const updated = await prisma.evaluation.update({
       where: { id: evaluationId as string },
       data: { rubrics: rubric, rubricsGenerated: true },

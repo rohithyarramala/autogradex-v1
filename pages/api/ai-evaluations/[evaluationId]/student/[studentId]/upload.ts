@@ -40,7 +40,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(405).end(`Method ${req.method} Not Allowed`);
     }
     const { files } = await handleFileUpload(req) as any;
-    const scriptFile = files.scriptPdf;
+    const scriptFile = files.file;
+    // console.log("scriptFile: ", scriptFile.file[0].filepath);
     if (!scriptFile || !scriptFile[0]?.filepath) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
@@ -49,7 +50,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const submission = await prisma.evaluationSubmission.findFirst({
       where: { evaluationId, studentId },
     });
+    console.log("submission: ", submission);
     if (!submission) return res.status(404).json({ error: 'Submission not found' });
+    // console.log("scriptPdfPath: ", scriptPdfPath);
     const updated = await prisma.evaluationSubmission.update({
       where: { id: submission.id },
       data: {

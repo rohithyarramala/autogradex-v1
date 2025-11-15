@@ -15,8 +15,18 @@
 1. tsc ai-evaluation-worker.ts # now removed
 2. node ai-evaluation-worker.js
 
-
-
 pm2 start ai-evaluation-worker.js --name "ai-evaluation-worker" --watch
 
 pm2 logs ai-evaluation-worker
+
+
+### iteration #  3 Completion 
+
+>  fixes
+
+1. index page updated with minimal details and style corrections
+2. 
+
+> Modules
+
+1. payment integrations

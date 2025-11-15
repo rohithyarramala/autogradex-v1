@@ -2,334 +2,330 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { Button, Table, Select } from 'react-daisyui';
-import { FaArrowLeft, FaSave, FaPlus, FaTimes } from 'react-icons/fa';
+import { Button, Input, Collapse, Table, Badge, Select } from 'react-daisyui';
+import {
+  FaArrowLeft,
+  FaSave,
+  FaPlus,
+  FaTrash,
+  FaChevronDown,
+  FaChevronUp,
+} from 'react-icons/fa';
 
-interface RubricRow {
-  co: string;
-  po: string;
-  marks: number;
-  section: string;
-  question: string;
-  difficulty: string;
-  key_points: string[];
-  question_id: string;
-  blooms_level: string;
+interface KeyPoint {
+  text: string;
 }
 
-const difficultyOptions = ['Easy', 'Medium', 'Hard'];
-const bloomsLevelOptions = ['L1', 'L2', 'L3', 'L4', 'L5'];
-
-const RubricRowComponent: React.FC<{
-  rubric: RubricRow;
-  index: number;
-  isDisabled: boolean;
-  onChange: (index: number, key: keyof RubricRow, value: any) => void;
-  onDelete: (index: number) => void;
-}> = ({ rubric, index, isDisabled, onChange, onDelete }) => (
-  <tr className="hover:bg-gray-50">
-    <td className="p-2">
-      <input
-        type="text"
-        className="input input-bordered w-full text-sm"
-        value={rubric.question_id}
-        onChange={(e) => onChange(index, 'question_id', e.target.value)}
-        disabled={isDisabled}
-        placeholder="Q.1 a"
-      />
-    </td>
-    <td className="p-2">
-      <input
-        type="text"
-        className="input input-bordered w-full text-sm"
-        value={rubric.question}
-        onChange={(e) => onChange(index, 'question', e.target.value)}
-        disabled={isDisabled}
-        placeholder="Enter question"
-      />
-    </td>
-    <td className="p-2">
-      <input
-        type="number"
-        className="input input-bordered w-20 text-sm"
-        value={rubric.marks}
-        onChange={(e) => onChange(index, 'marks', parseInt(e.target.value) || 0)}
-        disabled={isDisabled}
-        placeholder="0"
-        min="0"
-      />
-    </td>
-    <td className="p-2">
-      <input
-        type="text"
-        className="input input-bordered w-full text-sm"
-        value={rubric.section}
-        onChange={(e) => onChange(index, 'section', e.target.value)}
-        disabled={isDisabled}
-        placeholder="UNIT-1"
-      />
-    </td>
-    <td className="p-2">
-      <input
-        type="text"
-        className="input input-bordered w-full text-sm"
-        value={rubric.co}
-        onChange={(e) => onChange(index, 'co', e.target.value)}
-        disabled={isDisabled}
-        placeholder="CO1"
-      />
-    </td>
-    <td className="p-2">
-      <input
-        type="text"
-        className="input input-bordered w-full text-sm"
-        value={rubric.po}
-        onChange={(e) => onChange(index, 'po', e.target.value)}
-        disabled={isDisabled}
-        placeholder="1.3.1"
-      />
-    </td>
-    <td className="p-2">
-      <Select
-        className="w-full text-sm"
-        value={rubric.difficulty}
-        onChange={(e) => onChange(index, 'difficulty', e.target.value)}
-        disabled={isDisabled}
-      >
-        <option value="">Select Difficulty</option>
-        {difficultyOptions.map((opt) => (
-          <option key={opt} value={opt}>
-            {opt}
-          </option>
-        ))}
-      </Select>
-    </td>
-    <td className="p-2">
-      <textarea
-        className="textarea textarea-bordered w-full text-sm"
-        value={rubric.key_points.join('\n')}
-        onChange={(e) => onChange(index, 'key_points', e.target.value)}
-        disabled={isDisabled}
-        placeholder="Enter key points, one per line"
-        rows={3}
-      />
-    </td>
-    <td className="p-2">
-      <Select
-        className="w-full text-sm"
-        value={rubric.blooms_level}
-        onChange={(e) => onChange(index, 'blooms_level', e.target.value)}
-        disabled={isDisabled}
-      >
-        <option value="">Select Blooms Level</option>
-        {bloomsLevelOptions.map((opt) => (
-          <option key={opt} value={opt}>
-            {opt}
-          </option>
-        ))}
-      </Select>
-    </td>
-    {!isDisabled && (
-      <td className="p-2">
-        <Button
-          size="sm"
-          color="error"
-          onClick={() => onDelete(index)}
-          className="flex items-center gap-1"
-        >
-          <FaTimes />
-        </Button>
-      </td>
-    )}
-  </tr>
-);
+interface RubricRow {
+  question_id: string;
+  question: string;
+  marks: number;
+  topic?: string;
+  co?: string;
+  po?: string;
+  section?: string;
+  difficulty?: string;
+  blooms_level?: string;
+  key_points: KeyPoint[];
+}
 
 export default function RubricPage() {
   const router = useRouter();
+
   const { evaluationId } = router.query;
+
   const [rubrics, setRubrics] = useState<RubricRow[]>([]);
   const [evaluationStatus, setEvaluationStatus] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [openRow, setOpenRow] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
 
+  const isDisabled =
+    evaluationStatus === 'evaluated' || evaluationStatus === 'evaluating';
+
+  // 🔹 Fetch Rubrics
   useEffect(() => {
-    fetchRubrics();
+    if (evaluationId) fetchRubrics();
   }, [evaluationId]);
 
   const fetchRubrics = async () => {
-    if (!evaluationId) return;
     try {
       setLoading(true);
-      setError(null);
       const res = await fetch(`/api/ai-evaluations/${evaluationId}`);
       if (!res.ok) throw new Error('Failed to fetch rubrics');
       const data = await res.json();
 
-      let parsedRubrics: RubricRow[] = [];
+
+      console.log(data);
+
+      let parsed: RubricRow[] = [];
       if (data.rubrics) {
-        const raw = typeof data.rubrics === 'string' ? JSON.parse(data.rubrics) : data.rubrics;
-        parsedRubrics = Array.isArray(raw)
-          ? raw
-          : Array.isArray(raw.rubrics)
-          ? raw.rubrics
-          : [];
+        const raw =
+          typeof data.rubrics === 'string'
+            ? JSON.parse(data.rubrics)
+            : data.rubrics;
+        parsed = Array.isArray(raw) ? raw : raw.rubrics || [];
       }
 
-      setRubrics(parsedRubrics);
-      setEvaluationStatus(data.status);
+      // Normalize key points (no marks now)
+      const normalized = parsed.map((r) => ({
+        ...r,
+        key_points: (r.key_points || []).map((kp: any) =>
+          typeof kp === 'string' ? { text: kp } : { text: kp.text ?? '' }
+        ),
+      }));
+
+      setRubrics(normalized);
+      setEvaluationStatus(data.status || '');
     } catch (err) {
-      console.error('Failed to load rubrics', err);
-      setError('Failed to load rubrics. Please try again.');
+      console.error(err);
+      setError('Failed to load rubric data');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChange = (index: number, key: keyof RubricRow, value: any) => {
-    setRubrics((prev) =>
-      prev.map((rubric, i) =>
-        i === index
-          ? {
-              ...rubric,
-              [key]: key === 'key_points' ? value.split('\n') : value,
-            }
-          : rubric
-      )
-    );
+  // 🔹 Update question-level fields
+  const handleChange = (
+    index: number,
+    key: keyof RubricRow,
+    value: string | number
+  ) => {
+    setRubrics((prev) => {
+      const updated = [...prev];
+      (updated[index] as any)[key] = value;
+      return updated;
+    });
   };
 
-  const handleAddRow = () => {
-    setRubrics([
-      ...rubrics,
-      {
-        co: '',
-        po: '',
-        marks: 0,
-        section: '',
-        question: '',
-        difficulty: '',
-        key_points: [],
-        question_id: '',
-        blooms_level: '',
-      },
-    ]);
+  // 🔹 Update key point text
+  const handleKeyPointChange = (
+    rowIndex: number,
+    kpIndex: number,
+    value: string
+  ) => {
+    setRubrics((prev) => {
+      const updated = [...prev];
+      updated[rowIndex].key_points[kpIndex].text = value;
+      return updated;
+    });
   };
 
-  const handleDeleteRow = (index: number) => {
-    setRubrics(rubrics.filter((_, i) => i !== index));
+  // 🔹 Add key point
+  const handleAddKeyPoint = (rowIndex: number) => {
+    setRubrics((prev) => {
+      const updated = [...prev];
+      updated[rowIndex].key_points.push({ text: '' });
+      return updated;
+    });
   };
 
+  // 🔹 Delete key point
+  const handleDeleteKeyPoint = (rowIndex: number, kpIndex: number) => {
+    setRubrics((prev) => {
+      const updated = [...prev];
+      updated[rowIndex].key_points.splice(kpIndex, 1);
+      return updated;
+    });
+  };
+
+  // 🔹 Save rubrics
   const handleSave = async () => {
+    if (!evaluationId) return;
     try {
-      setError(null);
-      const res = await fetch(
-        `/api/ai-evaluations/${evaluationId}/update-rubric`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rubric: { rubrics } }),
-        }
-      );
-      if (!res.ok) throw new Error('Failed to save rubric');
-      router.push(`/ai-evaluations/${evaluationId}`);
+      setSaving(true);
+      
+
+      const res = await fetch(`/api/ai-evaluations/${evaluationId}/update-rubric`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rubric:rubrics }),
+      });
+
+      if (!res.ok) throw new Error('Failed to save rubrics');
+      alert('Rubrics saved successfully 🎯');
     } catch (err) {
       console.error(err);
-      setError('Error saving rubric. Please try again.');
+      alert('Error saving rubrics');
+    } finally {
+      setSaving(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="text-lg text-gray-600">Loading...</div>
-      </div>
-    );
-  }
+  // 🔹 UI states
+  if (loading)
+    return <div className="flex justify-center items-center h-96">Loading...</div>;
 
-  if (error) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="text-lg text-red-600">{error}</div>
-      </div>
-    );
-  }
-
-  const isDisabled = evaluationStatus === 'evaluated' || evaluationStatus === 'evaluating';
+  if (error)
+    return <div className="text-red-600 font-semibold text-center mt-8">{error}</div>;
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-        <Button
-          color="ghost"
-          onClick={() => router.back()}
-          className="flex items-center gap-2"
-        >
-          <FaArrowLeft /> Back
-        </Button>
-        <h1 className="text-2xl sm:text-3xl font-bold uppercase text-center">
-          Rubric Editor
-        </h1>
-        <Button
-          color="success"
-          disabled={isDisabled}
-          onClick={handleSave}
-          className="flex items-center gap-2"
-        >
-          <FaSave /> Save
+    <div className="max-w-6xl mx-auto px-4 py-8">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <Button color="ghost" onClick={() => router.back()}>
+            <FaArrowLeft className="mr-2" /> Back
+          </Button>
+          <h1 className="text-2xl font-bold">Rubric Evaluation</h1>
+        </div>
+        <Button color="primary" onClick={handleSave} disabled={isDisabled || saving}>
+          <FaSave className="mr-2" />
+          {saving ? 'Saving...' : 'Save Rubrics'}
         </Button>
       </div>
 
-      <div className="overflow-x-auto bg-white rounded-2xl shadow border">
-        <Table className="w-full">
-          <thead>
-            <tr className="bg-gray-100 text-gray-700 text-xs sm:text-sm uppercase">
-              <th className="p-2">Question ID</th>
-              <th className="p-2">Question</th>
-              <th className="p-2">Marks</th>
-              <th className="p-2">Section</th>
-              <th className="p-2">CO</th>
-              <th className="p-2">PO</th>
-              <th className="p-2">Difficulty</th>
-              <th className="p-2">Key Points</th>
-              <th className="p-2">Blooms Level</th>
-              {!isDisabled && <th className="p-2">Actions</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {rubrics.length > 0 ? (
-              rubrics.map((rubric, i) => (
-                <RubricRowComponent
-                  key={i}
-                  rubric={rubric}
-                  index={i}
-                  isDisabled={isDisabled}
-                  onChange={handleChange}
-                  onDelete={handleDeleteRow}
+      {/* Rubric Table */}
+      <div className="space-y-4">
+        {rubrics.map((row, index) => (
+          <div key={row.question_id} className="border rounded-lg shadow-md bg-base-100">
+            <div
+              className="flex justify-between items-center p-4 cursor-pointer hover:bg-base-200 transition-all"
+              onClick={() => setOpenRow(openRow === index ? null : index)}
+            >
+              <div>
+                <h2 className="font-semibold text-lg">
+                  {row.question_id}. {row.question}
+                </h2>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  <Badge color="info">{row.topic || 'No Topic'}</Badge>
+                  <Badge color="secondary">{row.section || 'No Section'}</Badge>
+                  <Badge color="accent">CO: {row.co || '-'}</Badge>
+                  <Badge color="primary">PO: {row.po || '-'}</Badge>
+                  <Badge color="warning">{row.blooms_level || '-'}</Badge>
+                  <Badge color="success">{row.difficulty || '-'}</Badge>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <Input
+                  type="number"
+                  value={row.marks}
+                  disabled={isDisabled}
+                  onChange={(e) => handleChange(index, 'marks', Number(e.target.value))}
+                  className="w-24"
                 />
-              ))
-            ) : (
-              <tr>
-                <td
-                  colSpan={isDisabled ? 9 : 10}
-                  className="text-center text-gray-400 py-6"
-                >
-                  No rubric data available
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </Table>
-      </div>
+                {openRow === index ? <FaChevronUp /> : <FaChevronDown />}
+              </div>
+            </div>
 
-      {!isDisabled && (
-        <Button
-          color="primary"
-          onClick={handleAddRow}
-          className="flex items-center gap-2"
-        >
-          <FaPlus /> Add Criterion
-        </Button>
-      )}
+            <Collapse open={openRow === index}>
+              <Collapse.Content className="p-4 border-t bg-base-200 space-y-4">
+                {/* Editable Metadata */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <Input
+                    placeholder="Section"
+                    value={row.section || ''}
+                    onChange={(e) => handleChange(index, 'section', e.target.value)}
+                    disabled={isDisabled}
+                  />
+
+                  {/* CO Dropdown */}
+                  <Select
+                    value={row.co || ''}
+                    onChange={(e) => handleChange(index, 'co', e.target.value)}
+                    disabled={isDisabled}
+                  >
+                    <option value="">Select CO</option>
+                    <option value="CO1">CO1</option>
+                    <option value="CO2">CO2</option>
+                    <option value="CO3">CO3</option>
+                    <option value="CO4">CO4</option>
+                    <option value="CO5">CO5</option>
+                  </Select>
+
+                  {/* PO Dropdown */}
+                  <Select
+                    value={row.po || ''}
+                    onChange={(e) => handleChange(index, 'po', e.target.value)}
+                    disabled={isDisabled}
+                  >
+                    <option value="">Select PO</option>
+                    <option value="PO1">PO1</option>
+                    <option value="PO2">PO2</option>
+                    <option value="PO3">PO3</option>
+                    <option value="PO4">PO4</option>
+                    <option value="PO5">PO5</option>
+                  </Select>
+
+                  {/* Bloom’s Level */}
+                  <Select
+                    value={row.blooms_level || ''}
+                    onChange={(e) => handleChange(index, 'blooms_level', e.target.value)}
+                    disabled={isDisabled}
+                  >
+                    <option value="">Bloom’s Level</option>
+                    <option value="Remember">Remember</option>
+                    <option value="Understand">Understand</option>
+                    <option value="Apply">Apply</option>
+                    <option value="Analyze">Analyze</option>
+                    <option value="Evaluate">Evaluate</option>
+                    <option value="Create">Create</option>
+                  </Select>
+
+                  {/* Difficulty */}
+                  <Select
+                    value={row.difficulty || ''}
+                    onChange={(e) => handleChange(index, 'difficulty', e.target.value)}
+                    disabled={isDisabled}
+                  >
+                    <option value="">Difficulty</option>
+                    <option value="Easy">Easy</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Hard">Hard</option>
+                  </Select>
+                </div>
+
+                {/* Key Points */}
+                <Table zebra>
+                  <Table.Head>
+                    <span>Key Point</span>
+                    <span>Action</span>
+                  </Table.Head>
+                  <Table.Body>
+                    {row.key_points.map((kp, kpIndex) => (
+                      <Table.Row key={kpIndex}>
+                        <span>
+                          <Input
+                            type="text"
+                            value={kp.text}
+                            disabled={isDisabled}
+                            onChange={(e) =>
+                              handleKeyPointChange(index, kpIndex, e.target.value)
+                            }
+                            className="w-full"
+                          />
+                        </span>
+                        <span>
+                          <Button
+                            size="sm"
+                            color="error"
+                            onClick={() => handleDeleteKeyPoint(index, kpIndex)}
+                            disabled={isDisabled}
+                          >
+                            <FaTrash />
+                          </Button>
+                        </span>
+                      </Table.Row>
+                    ))}
+                  </Table.Body>
+                </Table>
+
+                <Button
+                  size="sm"
+                  color="success"
+                  onClick={() => handleAddKeyPoint(index)}
+                  disabled={isDisabled}
+                  className="mt-2"
+                >
+                  <FaPlus className="mr-2" /> Add Key Point
+                </Button>
+              </Collapse.Content>
+            </Collapse>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
