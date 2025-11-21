@@ -131,7 +131,7 @@ export default function SubscriptionsTabsPage() {
   const { slug } = router.query;
 
   // switch role to ADMIN or SUPER_ADMIN to test
-  const role = "ADMIN";
+  const role = "ADMIN" as "ADMIN" | "SUPER_ADMIN";
 
   const [tab, setTab] = useState("dashboard");
 

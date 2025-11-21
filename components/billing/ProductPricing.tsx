@@ -42,7 +42,7 @@ const ProductPricing = ({ plans, subscriptions }: ProductPricingProps) => {
   };
 
   const hasActiveSubscription = (price: Price) =>
-    subscriptions.some((s) => s.priceId === price.id);
+    subscriptions.some((s) => s.planId === price.id);
 
   return (
     <section className="py-3">

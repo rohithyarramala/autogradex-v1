@@ -5,7 +5,8 @@ import { getSession } from '@/lib/session';
 import { throwIfNoOrganizationAccess } from 'models/organization';
 import { getAllServices } from 'models/service';
 import { getAllPrices } from 'models/price';
-import { getByCustomerId } from 'models/subscription';
+import { getByOrganizationId } from 'models/subscription';
+
 
 export default async function handler(
   req: NextApiRequest,
@@ -39,7 +40,7 @@ const handleGET = async (req: NextApiRequest, res: NextApiResponse) => {
   const customerId = await getStripeCustomerId(organizationMember, session);
 
   const [subscriptions, products, prices] = await Promise.all([
-    getByCustomerId(customerId),
+    getByOrganizationId(organizationMember.organizationId),
     getAllServices(),
     getAllPrices(),
   ]);

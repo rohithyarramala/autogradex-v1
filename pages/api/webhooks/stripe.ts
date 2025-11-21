@@ -4,7 +4,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import env from '@/lib/env';
 import type { Readable } from 'node:stream';
 import {
-  createStripeSubscription,
+  createSubscription,
   deleteStripeSubscription,
   getBySubscriptionId,
   updateStripeSubscription,
@@ -117,13 +117,13 @@ async function handleSubscriptionCreated(event: Stripe.Event) {
   const { customer, id, current_period_start, current_period_end, items } =
     event.data.object as Stripe.Subscription;
 
-  await createStripeSubscription({
-    customerId: customer as string,
+  await createSubscription({
+    organizationId: customer as string,
     id,
 
-    active: true,
-    startDate: new Date(current_period_start * 1000),
-    endDate: new Date(current_period_end * 1000),
-    priceId: items.data.length > 0 ? items.data[0].plan?.id : '',
+    status: 'active',
+    currentStart: new Date(current_period_start * 1000),
+    currentEnd: new Date(current_period_end * 1000),
+    planId: items.data.length > 0 ? items.data[0].plan?.id : '',
   });
 }
