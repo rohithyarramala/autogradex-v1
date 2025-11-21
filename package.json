@@ -69,6 +69,7 @@
     "next-i18next": "15.4.2",
     "nodemailer": "6.10.1",
     "pdfjs-dist": "^5.3.93",
+    "razorpay": "^2.9.6",
     "react": "18.3.1",
     "react-chartjs-2": "^5.3.0",
     "react-daisyui": "^5.0.5",

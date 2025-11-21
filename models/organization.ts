@@ -18,11 +18,25 @@ export const createOrganization = async (param: {
     data: {
       name,
       slug,
+
+      planId: "free-trial",
+      subscriptionStatus: "trialing",
+      trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days
     },
   });
 
+
   await addOrganizationMember(organization.id, userId, Role.ADMIN);
 
+   // Create usage bucket for trial period
+  await prisma.usage.create({
+    data: {
+      organizationId: organization.id,
+      periodStart: new Date(),
+      periodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    },
+  });
+  
   await findOrCreateApp(organization.name, organization.id);
 
   return organization;

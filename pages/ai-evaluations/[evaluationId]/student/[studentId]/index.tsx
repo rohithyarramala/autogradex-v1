@@ -65,6 +65,23 @@ interface SubmissionData {
   };
 }
 
+// Define the data structure for a single annotation
+interface Annotation {
+  id: string; // Unique ID
+  questionId: number; // The question this annotation belongs to
+  pageNumber: number; // The PDF page number (1-indexed)
+  type: 'highlight' | 'comment' | 'symbol';
+  // Coordinates for placement (normalized to 0-1000 for scalability, 
+  // or use PDF point/pixel values, but normalization is better for responsiveness)
+  x: number; 
+  y: number;
+  width?: number; // For highlights
+  height?: number; // For highlights
+  color?: string; // For highlights/symbols
+  text?: string; // For comments
+  symbol?: 'check' | 'edit' | 'highlight'; // For symbols
+}
+
 // Custom hook for toast notifications
 const useToast = () => {
   const [toastMessage, setToastMessage] = useState('');
@@ -115,6 +132,51 @@ const StudentEvaluationPage = () => {
 
   const router = useRouter();
   const { evaluationId, studentId } = router.query;
+
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+
+  // ----------------------------------------------------
+// 1. Save Annotation Method
+// ----------------------------------------------------
+const saveAnnotation = useCallback((newAnnotation: Omit<Annotation, 'id'>) => {
+    // Generate a unique ID (e.g., using a library like uuid or a simple timestamp + random number)
+    const newId = `ann-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    
+    const annotationWithId: Annotation = { ...newAnnotation, id: newId };
+
+    setAnnotations((prev) => [...prev, annotationWithId]);
+    console.log('Saved annotation:', annotationWithId);
+    // useToast({ message: `Annotation saved for Q${newAnnotation.questionId}.` });
+    // In a real app, you would also trigger an API call here to persist the data.
+
+}, [showToast]);
+
+// ----------------------------------------------------
+// 2. Filter Annotations for the Current View
+// ----------------------------------------------------
+// Filter annotations to only show those relevant to the currently selected question
+const relevantAnnotations = useMemo(() => {
+    if (!submission) return [];
+    
+    // Logic: Only show annotations for the current question in the 'student' view
+    if (currentTab === 'student') {
+        return annotations.filter(ann => ann.questionId === currentQuestion);
+    }
+    // You might show all annotations in a 'review' mode, but based on your tabs, 
+    // we assume annotations are question-specific in the 'student' view.
+    return []; // Don't show annotations on 'question' or 'model' tabs
+}, [annotations, currentQuestion, currentTab, submission]); 
+
+// ----------------------------------------------------
+// 3. Annotation Tools Handlers
+// ----------------------------------------------------
+const handleAnnotationToolClick = (type: 'highlight' | 'comment' | 'symbol', symbol?: string) => {
+    // This function will set a mode, waiting for the user to click on the PDF.
+    console.log(`Annotation mode set to: ${type}`);
+    // You'd need a state like [annotationMode, setAnnotationMode] to track this.
+    // For simplicity, let's assume clicking a tool enables it until the next click.
+    // e.g., setAnnotationMode({ type, symbol });
+};
 
   // Modern Color Palette
   const colors = {
@@ -724,13 +786,14 @@ const StudentEvaluationPage = () => {
               url={paperUrl}
               pageNumber={imageIndex}
               scale={1} // Pass 1 here as zoom is handled by parent container
+              annotations={relevantAnnotations}
             />
             {/* Annotation tools could be overlaid here */}
-            {/* <div className="absolute top-4 right-4 flex space-x-2">
-              <Button size="sm" color="ghost" className="bg-white/70 backdrop-blur-sm shadow-md"><AiOutlineHighlight className="text-xl" /></Button>
-              <Button size="sm" color="ghost" className="bg-white/70 backdrop-blur-sm shadow-md"><AiOutlineCheckCircle className="text-xl text-green-500" /></Button>
-              <Button size="sm" color="ghost" className="bg-white/70 backdrop-blur-sm shadow-md"><AiOutlineEdit className="text-xl" /></Button>
-            </div> */}
+           <div className="absolute top-4 right-4 flex space-x-2">
+              <Button size="sm" onClick={() => handleAnnotationToolClick('highlight')} /* ... */><AiOutlineHighlight className="text-xl" /></Button>
+              <Button size="sm" onClick={() => handleAnnotationToolClick('symbol', 'check')} /* ... */><AiOutlineCheckCircle className="text-xl text-green-500" /></Button>
+              <Button size="sm" onClick={() => handleAnnotationToolClick('comment')} /* ... */><AiOutlineEdit className="text-xl" /></Button>
+            </div>
           </div>
         )}
       </div>

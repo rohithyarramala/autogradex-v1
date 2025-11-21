@@ -82,9 +82,21 @@ model Organization {
   invitations     Invitation[]
   members         OrganizationMember[]
 
-  sections Section[]
-  subjects Subject[]
-  evaluations Evaluation[]
+  trialEndsAt        DateTime?
+  subscriptionId     String? // current RZP subscription id
+  planId             String? // current Razorpay plan
+  nextPlanId         String? // selected downgrade plan (optional)
+  subscriptionStatus String?   @default("inactive")
+
+  usage Usage?
+  currentUsageId   String?
+
+
+  sections      Section[]
+  subjects      Subject[]
+  evaluations   Evaluation[]
+  subscriptions Subscription[] // <-- Added relation field
+
   @@index([billingId])
 }
 
@@ -144,30 +156,90 @@ model ApiKey {
   @@index([organizationId])
 }
 
-model Subscription {
-  id         String    @id
-  customerId String
-  priceId    String
-  active     Boolean   @default(false)
-  startDate  DateTime
-  endDate    DateTime
-  cancelAt   DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @default(now())
+// model Subscription {
+//   id         String    @id
+//   customerId String
+//   priceId    String
+//   active     Boolean   @default(false)
+//   startDate  DateTime
+//   endDate    DateTime
+//   cancelAt   DateTime?
+//   createdAt  DateTime  @default(now())
+//   updatedAt  DateTime  @default(now())
 
-  @@index([customerId])
+//   @@index([customerId])
+// }
+
+model Subscription {
+  id             String    @id // razorpay subscription id
+  organizationId String
+  planId         String
+  status         String    @default("created") // created | authenticated | active | pending | halted | cancelled
+  currentStart   DateTime?
+  currentEnd     DateTime?
+  notes          Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
 }
 
+// Add limits JSON option to Service
 model Service {
   id          String   @id @default(uuid())
+  name        String
   description String
   features    String[]
   image       String
-  name        String
   created     DateTime
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now())
   Price       Price[]
+  limits      Json? // e.g. {"maxTeachers":2,"maxAIEvaluationsPerMonth":500}
+}
+
+
+model ServicePlan {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  rzpPlanId   String   @unique
+  price       Int
+  limits      Json
+  createdAt   DateTime @default(now())
+}
+
+
+// model Service {
+//   id          String   @id @default(uuid())
+//   description String
+//   features    String[]
+//   image       String
+//   name        String
+//   created     DateTime
+//   createdAt   DateTime @default(now())
+//   updatedAt   DateTime @default(now())
+//   Price       Price[]
+// }
+
+// New Usage model (monthly usage bucket)
+model Usage {
+  id                String   @id @default(uuid())
+  organizationId    String   @unique
+  periodStart       DateTime
+  periodEnd         DateTime
+  usedTeachers      Int      @default(0)
+  usedStudents      Int      @default(0)
+  usedEvaluations   Int      @default(0)
+  usedAIEvaluations Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, periodStart])
+  @@index([organizationId])
 }
 
 model Price {
@@ -237,27 +309,27 @@ model Subject {
 }
 
 model Evaluation {
-  id          String                 @id @default(uuid())
-  name        String
-  classId     String
-  sectionId   String
-  subjectId   String
-  createdBy   String
-  maxMarks    Int
-  status      String                 @default("rubrics-not-generated") // rubrics not generated, upload pending, ready for evaluation, evaluating, evaluated
-  uploadedBy String                 @default("student")
-  rubrics     Json?
+  id               String                 @id @default(uuid())
+  name             String
+  classId          String
+  sectionId        String
+  subjectId        String
+  createdBy        String
+  maxMarks         Int
+  status           String                 @default("rubrics-not-generated") // rubrics not generated, upload pending, ready for evaluation, evaluating, evaluated
+  uploadedBy       String                 @default("student")
+  rubrics          Json?
   rubricsGenerated Boolean?
-  organizationId String
-  org         Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  questionPdf String
-  answerKey   String?
-  createdAt   DateTime               @default(now())
-  class       Class                  @relation(fields: [classId], references: [id], onDelete: Cascade)
-  creator     User                   @relation(fields: [createdBy], references: [id], onDelete: Cascade)
-  section     Section                @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  subject     Subject                @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  submissions EvaluationSubmission[]
+  organizationId   String
+  org              Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  questionPdf      String
+  answerKey        String?
+  createdAt        DateTime               @default(now())
+  class            Class                  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  creator          User                   @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  section          Section                @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  subject          Subject                @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  submissions      EvaluationSubmission[]
 }
 
 model EvaluationSubmission {
@@ -321,6 +393,7 @@ model EvaluationResult {
   feedback             String?
   createdAt            DateTime             @default(now())
   EvaluationSubmission EvaluationSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
   // status String @default("submitted")
   @@unique([submissionId, questionNo])
 }

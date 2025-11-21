@@ -117,8 +117,11 @@ const UserNavigation = ({ activePathname, role }: UserNavigationProps) => {
     );
   }
 
+ 
+
   if (role === 'ADMIN' || role === 'TEACHER') {
     menus.unshift(
+     
       {
         name: t('Classes'),
         href: '/classes',
@@ -152,7 +155,40 @@ const UserNavigation = ({ activePathname, role }: UserNavigationProps) => {
     );
   }
 
+   if (role === 'ADMIN') {
+    menus.unshift(
+       {
+        name: t('dashboard'),
+        href: '/dashboard',
+        icon: HomeIcon,
+        active: activePathname === '/dashboard',
+      },
+      {
+      name: t('Teachers'),
+      href: '/teachers',
+      icon: BookOpenIcon,
+      active: activePathname === '/teachers',
+    });
+  }
+
+  if (role === 'ADMIN') {
+    menus.push(
+      {
+        name: t('subscriptions_and_plans'),
+        href: '/subscriptions',
+        icon: ClipboardDocumentListIcon,
+        active: activePathname === '/subscriptions',
+      },
+      {
+        name: t('billing_and_payments'),
+        href: '/billing',
+        icon: CreditCardIcon,
+        active: activePathname === '/billing',
+      }
+    );
+  }
   if (role === 'STUDENT') {
+    
     menus.unshift({
       name: t('my-classes'),
       href: '/my-classes',
@@ -161,14 +197,7 @@ const UserNavigation = ({ activePathname, role }: UserNavigationProps) => {
     });
   }
 
-  if (role === 'ADMIN') {
-    menus.unshift({
-      name: t('Teachers'),
-      href: '/teachers',
-      icon: BookOpenIcon,
-      active: activePathname === '/teachers',
-    });
-  }
+  
 
   return <NavigationItems menus={menus} />;
 };
