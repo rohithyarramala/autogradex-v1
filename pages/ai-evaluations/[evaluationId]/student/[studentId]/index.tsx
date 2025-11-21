@@ -777,7 +777,7 @@ const handleAnnotationToolClick = (type: 'highlight' | 'comment' | 'symbol', sym
           <div
             className="absolute inset-0 flex items-center justify-center p-4 transition-transform duration-300 ease-out"
             style={{
-              transform: `scale(${zoomLevel})`,
+              // transform: `scale(${zoomLevel})`,
               transformOrigin: 'center center',
             }}
           >
@@ -785,7 +785,9 @@ const handleAnnotationToolClick = (type: 'highlight' | 'comment' | 'symbol', sym
               key={`pdf-${paperUrl}-${imageIndex}`}
               url={paperUrl}
               pageNumber={imageIndex}
-              scale={1} // Pass 1 here as zoom is handled by parent container
+              // scale={zoomLevel}
+              scale={zoomLevel} // Pass 1 here as zoom is handled by parent container
+              onScaleChange={setZoomLevel}
               annotations={relevantAnnotations}
             />
             {/* Annotation tools could be overlaid here */}

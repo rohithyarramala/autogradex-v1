@@ -6,193 +6,247 @@ import AnnotationRenderer from './AnnotationRenderer';
 
 GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
-// Define the data structure for a single annotation
 interface Annotation {
-  id: string; // Unique ID
-  questionId: number; // The question this annotation belongs to
-  pageNumber: number; // The PDF page number (1-indexed)
+  id: string;
+  questionId: number;
+  pageNumber: number;
   type: 'highlight' | 'comment' | 'symbol';
-  // Coordinates for placement (normalized to 0-1000 for scalability, 
-  // or use PDF point/pixel values, but normalization is better for responsiveness)
-  x: number; 
+  x: number;
   y: number;
-  width?: number; // For highlights
-  height?: number; // For highlights
-  color?: string; // For highlights/symbols
-  text?: string; // For comments
-  symbol?: 'check' | 'edit' | 'highlight'; // For symbols
+  width?: number;
+  height?: number;
+  color?: string;
+  text?: string;
+  symbol?: 'check' | 'edit' | 'highlight';
 }
 
 interface PdfViewerProps {
   url: string;
   pageNumber?: number;
   annotations: Annotation[];
-  scale?: number;
+  scale?: number; // Controlled from parent (optional)
+  onScaleChange?: (newScale: number) => void; // Optional callback
 }
 
-export default function PdfViewer({ url, pageNumber = 1, scale = 1 ,annotations}: PdfViewerProps) {
-  const [numPages, setNumPages] = useState(0);
-  const [currentPage, setCurrentPage] = useState(pageNumber);
+export default function PdfViewer({
+  url,
+  pageNumber = 1,
+  annotations = [],
+  scale: controlledScale,
+  onScaleChange,
+}: PdfViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [numPages, setNumPages] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
-  const [containerWidth, setContainerWidth] = useState<number>();
+  // Local scale if not controlled
+  const [localScale, setLocalScale] = useState(1);
+  const scale = controlledScale ?? localScale;
 
-  console.log('PdfViewer: Rendering with URL', url, 'and pageNumber', pageNumber);
-  console.log(url);
+  const isZoomed = scale > 1.05;
 
+  // Zoom limits
+  const MIN_SCALE = 0.5;
+  const MAX_SCALE = 3.0;
+  const ZOOM_STEP = 0.2;
+
+  // Auto-scroll to page
   useEffect(() => {
-    console.log('PdfViewer: pageNumber prop changed to', pageNumber); // Debug
-    setCurrentPage(Math.max(1, pageNumber));
-  }, [pageNumber]);
-
-  useEffect(() => {
-    const observer = new ResizeObserver((entries) => {
-      // We only observe one element (containerRef.current)
-      for (const entry of entries) {
-        if (entry.target === containerRef.current) {
-          // Use contentRect.width for the inner width without padding/border
-          setContainerWidth(entry.contentRect.width);
-        }
-      }
-    });
-
-    if (containerRef.current) {
-      observer.observe(containerRef.current);
-      // Initialize width immediately
-      setContainerWidth(containerRef.current.clientWidth);
+    if (!containerRef.current || !numPages) return;
+    const pageEl = containerRef.current.querySelector(
+      `[data-page-number="${pageNumber}"]`
+    ) as HTMLElement;
+    if (pageEl) {
+      containerRef.current.scrollTo({
+        top: pageEl.offsetTop - 100,
+        behavior: 'smooth',
+      });
     }
-
-    // Cleanup function
-    return () => {
-      if (containerRef.current) {
-        observer.unobserve(containerRef.current);
-      }
-    };
-  }, []);
+  }, [pageNumber, numPages]);
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
-    console.log('PdfViewer: Document loaded with', numPages, 'pages'); // Debug
     setNumPages(numPages);
-    setCurrentPage((prev) => Math.min(Math.max(pageNumber, 1), numPages));
   };
 
-  // Scroll to the specified page with retries and delay
+  // Mouse Wheel Zoom (Google Maps Style)
   useEffect(() => {
-    if (containerRef.current && numPages > 0) {
-      const maxRetries = 10;
-      let retryCount = 0;
+    const container = containerRef.current;
+    if (!container) return;
 
-      const scrollToPage = () => {
-        const pageElement = containerRef.current?.querySelector(
-          `[data-page-number="${currentPage}"]`
-        ) as HTMLElement;
-        if (pageElement) {
-          console.log('PdfViewer: Scrolling to page', currentPage); // Debug
-          console.log('PdfViewer: Page element found at offsetTop', pageElement.offsetTop); // Debug
-          // Use setTimeout to ensure scroll happens after render
-          setTimeout(() => {
-            containerRef.current?.scrollTo({
-              top: pageElement.offsetTop,
-              behavior: 'smooth',
-            });
-            console.log('PdfViewer: Scroll executed, container scrollTop:', containerRef.current?.scrollTop); // Debug
-          }, 100);
-          if (scrollTimeoutRef.current) {
-            clearTimeout(scrollTimeoutRef.current); // Clear any pending retries
-          }
-        } else if (retryCount < maxRetries) {
-          console.warn(
-            'PdfViewer: Page element not found for page',
-            currentPage,
-            'retrying',
-            retryCount + 1,
-            'of',
-            maxRetries
-          ); // Debug
-          retryCount++;
-          scrollTimeoutRef.current = setTimeout(scrollToPage, 300); // Retry after 300ms
-        } else {
-          console.error(
-            'PdfViewer: Failed to find page element for page',
-            currentPage,
-            'after',
-            maxRetries,
-            'retries. Ensure the PDF has at least',
-            currentPage,
-            'pages.'
-          ); // Debug
+    const handleWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return; // Only zoom with Ctrl/Cmd + scroll
+      e.preventDefault();
+
+      const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+      let newScale = scale + delta;
+
+      // Clamp
+      newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+
+      // Zoom toward cursor
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const scrollLeftBefore = container.scrollLeft;
+      const scrollTopBefore = container.scrollTop;
+
+      // Update scale
+      if (controlledScale === undefined) {
+        setLocalScale(newScale);
+      }
+      onScaleChange?.(newScale);
+
+      // Adjust scroll to keep cursor in same visual position
+      requestAnimationFrame(() => {
+        const ratioX = x / rect.width;
+        const ratioY = y / rect.height;
+
+        container.scrollLeft = scrollLeftBefore + (x - rect.width * ratioX) * (newScale / scale - 1);
+        container.scrollTop = scrollTopBefore + (y - rect.height * ratioY) * (newScale / scale - 1);
+      });
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, [scale, controlledScale, onScaleChange]);
+
+  // Mouse Drag-to-Pan
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if (!isZoomed && e.button === 0) return;
+      setIsDragging(true);
+      setDragStart({
+        x: e.clientX + container.scrollLeft,
+        y: e.clientY + container.scrollTop,
+      });
+      container.style.cursor = 'grabbing';
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      container.scrollLeft = dragStart.x - e.clientX;
+      container.scrollTop = dragStart.y - e.clientY;
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      if (isZoomed) container.style.cursor = 'grab';
+    };
+
+    container.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      container.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, dragStart, isZoomed]);
+
+  // Touch Pinch-to-Zoom + Pan
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    let startX = 0, startY = 0;
+    let initialScale = scale;
+    let initialDistance = 0;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        // Pinch zoom
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        initialDistance = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+        initialScale = scale;
+      } else if (e.touches.length === 1) {
+        // Pan
+        const touch = e.touches[0];
+        startX = touch.clientX + container.scrollLeft;
+        startY = touch.clientY + container.scrollTop;
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const distance = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+        const newScale = initialScale * (distance / initialDistance);
+        const clampedScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+
+        if (controlledScale === undefined) {
+          setLocalScale(clampedScale);
         }
-      };
+        onScaleChange?.(clampedScale);
+      } else if (e.touches.length === 1 && (isZoomed || e.touches[0].clientX)) {
+        const touch = e.touches[0];
+        container.scrollLeft = startX - touch.clientX;
+        container.scrollTop = startY - touch.clientY;
+      }
+    };
 
-      scrollToPage();
+    container.addEventListener('touchstart', handleTouchStart);
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
 
-      // Cleanup on unmount
-      return () => {
-        if (scrollTimeoutRef.current) {
-          clearTimeout(scrollTimeoutRef.current);
-        }
-      };
-    }
-  }, [currentPage, numPages]);
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, [scale, isZoomed, controlledScale, onScaleChange]);
 
   return (
     <div
       ref={containerRef}
-      className="w-full h-full overflow-auto"
-      style={{ position: 'relative', scrollBehavior: 'smooth' }}
+      className="w-full h-full overflow-auto bg-gray-100"
+      style={{
+        cursor: isZoomed ? (isDragging ? 'grabbing' : 'grab') : 'default',
+        userSelect: 'none',
+        scrollBehavior: 'smooth',
+      }}
     >
       <Document
         file={url}
-        key={url} // Force re-render on URL change
         onLoadSuccess={onDocumentLoadSuccess}
-        onLoadError={(error) => console.error('PDF load error:', error)}
-        error={<div className="text-red-500 text-center p-4">Failed to load PDF file.</div>}
-        loading={<div className="text-gray-500 text-center p-4">Loading PDF...</div>}
+        loading={<div className="flex items-center justify-center h-full text-gray-500">Loading PDF...</div>}
       >
-        {/* {Array.from({ length: numPages }, (_, index) => (
-          <Page
-            key={index + 1}
-            pageNumber={index + 1}
-            scale={scale}
-            renderTextLayer={false}
-            renderAnnotationLayer={false}
-            className="mb-4 shadow-sm"
-            // width={Math.min(800, window.innerWidth - 40)}
-            width={containerWidth}
-          />
-        ))} */}
-        {Array.from({ length: numPages }, (_, index) => {
-                    const pageNum = index + 1;
-                    const pageAnnotations = annotations.filter(ann => ann.pageNumber === pageNum);
+        <div className="inline-block min-w-full text-center py-8">
+          {Array.from({ length: numPages }, (_, i) => {
+            const pageNum = i + 1;
+            const pageAnnotations = annotations.filter(a => a.pageNumber === pageNum);
 
-                    return (
-                        <div
-                            key={pageNum}
-                            className="relative mb-4 shadow-sm" // Add 'relative' to position annotations
-                            // onClick={(e) => handlePageClick(e, pageNum)}
-                        >
-                            {/* The PDF Page */}
-                            <Page
-                                pageNumber={pageNum}
-                                scale={scale}
-                                renderTextLayer={false}
-                                renderAnnotationLayer={false}
-                                width={containerWidth} // Keep containerWidth for initial fit
-                                className="z-0" // Ensure page is in the background
-                            />
-
-                            {/* Annotation Overlay */}
-                            {pageAnnotations.map((ann) => (
-                                <AnnotationRenderer 
-                                    key={ann.id}
-                                    annotation={ann}
-                                    pageScale={scale} // Pass scale for correct placement/size
-                                />
-                            ))}
-                        </div>
-                    );
-                })}
+            return (
+              <div
+                key={pageNum}
+                data-page-number={pageNum}
+                className="my-12 inline-block"
+              >
+                <div className="relative bg-white shadow-2xl rounded-lg overflow-visible">
+                  <Page
+                    pageNumber={pageNum}
+                    scale={scale}
+                    renderTextLayer={false}
+                    renderAnnotationLayer={false}
+                    className="max-w-none block"
+                  />
+                  <div className="absolute inset-0 pointer-events-none">
+                    {pageAnnotations.map((ann) => (
+                      <AnnotationRenderer key={ann.id} annotation={ann} pageScale={scale} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </Document>
     </div>
   );
